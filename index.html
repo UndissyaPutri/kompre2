@@ -514,12 +514,20 @@ table.data-table td.empty{text-align:center}
     <!-- TAB: OVERVIEW -->
     <div class="tab-panel active" id="panel-overview">
       <p style="font-size:11.5px;color:var(--text-soft);margin:0 0 8px;font-style:italic">Catatan: Pinjaman &amp; Merchant mengikuti filter Regional/Cabang/Unit Kerja/RM di atas. Simpanan dihitung dari keseluruhan data (termasuk nasabah simpanan yang belum punya pinjaman), tidak ikut filter cabang.</p>
-      <div class="detail-section-title">Pinjaman (LW321, sesuai filter)</div>
-      <div id="statsGridPinjaman" style="margin-bottom:14px"></div>
-      <div class="detail-section-title">Simpanan (keseluruhan data)</div>
-      <div id="statsGridSimpanan" style="margin-bottom:14px"></div>
-      <div class="detail-section-title">Merchant (sesuai filter)</div>
-      <div id="statsGridMerchant" style="margin-bottom:18px"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
+        <div>
+          <div class="detail-section-title">Pinjaman (LW321, sesuai filter)</div>
+          <div id="statsGridPinjaman"></div>
+        </div>
+        <div>
+          <div class="detail-section-title">Simpanan (keseluruhan data)</div>
+          <div id="statsGridSimpanan"></div>
+        </div>
+        <div>
+          <div class="detail-section-title">Merchant (sesuai filter)</div>
+          <div id="statsGridMerchant"></div>
+        </div>
+      </div>
 
       <div class="charts-grid">
         <div class="chart-card">
@@ -615,6 +623,9 @@ table.data-table td.empty{text-align:center}
               <option value="">Semua Jenis Rekening</option>
               <option value="Tabungan">Tabungan</option>
               <option value="Giro">Giro</option>
+              <option value="Deposito">Deposito</option>
+              <option value="EDC">EDC</option>
+              <option value="QRIS">QRIS</option>
             </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
@@ -637,13 +648,16 @@ table.data-table td.empty{text-align:center}
           </div>
 
           <p style="font-size:11.5px;color:var(--text-soft);margin:-4px 0 8px;font-style:italic">Konteks portfolio nasabah pinjaman (LW321) sesuai filter — dasar dari perhitungan Deposit to Loan di bawah.</p>
-          <div class="detail-section-title">Pinjaman</div>
-          <div id="priorityStatsPinjaman" style="margin-bottom:14px"></div>
-          <div class="detail-section-title">Simpanan (nasabah pinjaman ini saja)</div>
-          <div id="priorityStatsSimpanan" style="margin-bottom:18px"></div>
-
-          <div class="detail-section-title">KPI — Rasio DPK Debitur Kelolaan to Loan SME</div>
-          <div class="customer-hero" id="kpiDplCard" style="padding:14px 20px;margin-bottom:18px"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
+            <div>
+              <div class="detail-section-title">Pinjaman</div>
+              <div id="priorityStatsPinjaman"></div>
+            </div>
+            <div>
+              <div class="detail-section-title">Simpanan (nasabah pinjaman ini saja)</div>
+              <div id="priorityStatsSimpanan"></div>
+            </div>
+          </div>
 
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
             <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
@@ -1191,6 +1205,13 @@ function buildCustomers(){
     if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
     if(c.edc.length===0 || c.qris.length===0) opp.push('noMerchant');
     if(c.worstKol >= 2) opp.push('kolWatch');
+    // "Currently has no active credit facility" — not "never had one". A
+    // customer whose loan is fully paid off (Baki Debet = 0) but who still
+    // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
+    // candidate as someone who was never in LW321 at all (see the separate
+    // fundingOnlyProspects capture above, merged with this in
+    // computeOppCategories/buildPinjamanOppList).
+    if(c.totalBakiDebet === 0 && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)) opp.push('pinjaman');
     c.opportunities = opp;
     c.oppCount = opp.length;
   });
@@ -1204,7 +1225,7 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', sub:'Nasabah sudah punya simpanan (Tabungan/Giro), belum pernah punya fasilitas kredit di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship simpanan di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
   noTabungan: {tag:'TABUNGAN', label:'Cross-sell Tabungan', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
   noGiro:     {tag:'GIRO', label:'Cross-sell Giro', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
   noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
@@ -1216,12 +1237,42 @@ function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
   getScopedCustomers().forEach(c => {
-    c.opportunities.forEach(k => { if(cats[k]) cats[k].push(c); });
+    c.opportunities.forEach(k => { if(k !== 'pinjaman' && cats[k]) cats[k].push(c); });
   });
-  // "Pinjaman" (RM SME angle) draws from the separate funding-only-prospect
-  // list, not from `customers` — see buildCustomers for why it's kept apart.
-  cats.pinjaman = State.fundingOnlyProspects || [];
+  cats.pinjaman = buildPinjamanOppList();
   State.oppCategories = cats;
+}
+
+/* "Pinjaman" (RM SME angle) — "sedang tidak memiliki fasilitas kredit", not
+   "belum pernah punya": merges two different-shaped sources into one common
+   display shape so selectOpp doesn't need to know which source an entry
+   came from.
+     1. Genuinely never had a loan — the fundingOnlyProspects captured
+        separately in buildCustomers (CIF not found in LW321 at all).
+     2. HAD a loan before but it's fully paid off now (Baki Debet = 0) —
+        tagged 'pinjaman' on the customer object itself above, drawing on
+        whatever Tabungan/Giro/Deposito/EDC/QRIS they already have.
+   Sorted newest-first by account open date (best-effort — group 2 doesn't
+   always have a clean single "open date", so it falls back to whichever
+   product-open-date is available, or sorts after dated entries if none is). */
+function buildPinjamanOppList(){
+  const entries = [];
+  (State.fundingOnlyProspects || []).forEach(p => {
+    entries.push({cif:p.cif, nama:p.nama, produk:[p.jenis], saldo:p.balance, openDt:p.openDt, ukerCode:p.ukerCode, everHadLoan:false});
+  });
+  getScopedCustomers().forEach(c => {
+    if(!c.opportunities.includes('pinjaman')) return;
+    const produk = [];
+    if(c.tabungan.length) produk.push('Tabungan');
+    if(c.giro.length) produk.push('Giro');
+    if(c.deposito.length) produk.push('Deposito');
+    if(c.edc.length) produk.push('EDC');
+    if(c.qris.length) produk.push('QRIS');
+    const dt = cleanStr(c.tabungan[0]?.openDt) || cleanStr(c.giro[0]?.openDate) || '';
+    entries.push({cif:c.cif, nama:c.nama, produk, saldo:c.totalFunding, openDt:dt, ukerCode:c.uker, everHadLoan:true});
+  });
+  entries.sort((a,b) => (b.openDt||'').localeCompare(a.openDt||''));
+  return entries;
 }
 
 /* ===================================================================
@@ -1362,32 +1413,6 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   if(ids.pinjaman) $(ids.pinjaman).innerHTML = renderTable(pinjamanCards);
   if(ids.simpanan) $(ids.simpanan).innerHTML = renderTable(simpananCards);
   if(ids.merchant) $(ids.merchant).innerHTML = renderTable(merchantCards);
-}
-
-/* KPI target per "Ketentuan Ekspansi Kredit Segmen SME Tahun 2026" — Rasio
-   DPK Debitur Kelolaan to Loan SME target = 18% of Baki Debet. Achievement %
-   is realised Total Funding against that Rupiah target, not just the raw
-   ratio, so it reads directly as "how close is this branch/RM to the KPI". */
-function renderKpiDplCard(custs){
-  const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
-  const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0);
-  const TARGET_RATIO = 0.18;
-  const targetDPK = totalBaki * TARGET_RATIO;
-  const actualRatio = totalBaki > 0 ? totalFunding / totalBaki : 0;
-  const achievementPct = targetDPK > 0 ? (totalFunding / targetDPK * 100) : 0;
-  const statusColor = achievementPct >= 100 ? 'var(--success)' : achievementPct >= 70 ? 'var(--warning)' : 'var(--danger)';
-  $('kpiDplCard').innerHTML = `
-    <div class="customer-hero-inner">
-      <span class="label-tag">KPI Rasio DPK Debitur Kelolaan to Loan SME — Target 18%</span>
-      <div class="cname" style="font-size:20px;color:${statusColor}">${achievementPct.toFixed(1)}% dari target</div>
-      <div class="customer-hero-grid" style="margin-top:10px">
-        <div><div class="f-label">Rasio Aktual (Total Funding / Baki Debet)</div><div class="f-value">${(actualRatio*100).toFixed(1)}%</div></div>
-        <div><div class="f-label">Target DPK (18% × Baki Debet)</div><div class="f-value">${fmtRupiah(targetDPK)}</div></div>
-        <div><div class="f-label">Realisasi Total Funding</div><div class="f-value">${fmtRupiah(totalFunding)}</div></div>
-        <div><div class="f-label">Gap ke Target</div><div class="f-value">${fmtRupiah(Math.max(targetDPK-totalFunding,0))}</div></div>
-      </div>
-    </div>
-  `;
 }
 
 function renderStats(){
@@ -1726,28 +1751,28 @@ function selectOpp(k, resetPinjamanPage=true){
   if(k === 'pinjaman'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
-    if(jenisFilter) list = list.filter(p => p.jenis === jenisFilter);
+    if(jenisFilter) list = list.filter(p => p.produk.includes(jenisFilter));
     const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
     const visible = list.slice(0, pageSize);
     const entries = visible.map(p => `
       <div class="opp-entry">
         <div class="opp-entry-head">
           <span>${escapeHtml(p.nama || '(tanpa nama)')}</span>
-          <span class="badge-pill prod-yes" style="font-weight:800">${escapeHtml(p.jenis)}</span>
+          <span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span>
         </div>
         <div class="detail-grid">
           <div class="detail-field"><span class="lbl">CIF</span><span class="val">${escapeHtml(p.cif)}</span></div>
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
-          <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.balance)}</span></div>
+          <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
         </div>
-        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${escapeHtml(p.jenis)}</strong> di BRI tapi belum pernah tercatat punya fasilitas kredit — kandidat pipeline kredit untuk RM SME.</div>
+        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${p.produk.map(x=>escapeHtml(x)).join(', ')}</strong> di BRI, ${p.everHadLoan ? 'kreditnya sudah lunas/tidak aktif saat ini' : 'tapi belum pernah tercatat punya fasilitas kredit'} — kandidat pipeline kredit untuk RM SME.</div>
       </div>
     `).join('');
     const loadMore = list.length > pageSize
       ? `<div style="text-align:center;padding:14px"><button class="btn btn-outline btn-sm" onclick="growPinjamanOppPage()">Muat ${OPP_DISPLAY_CAP} Lagi</button></div>` : '';
     $('oppDetail').innerHTML = `
       <div class="rec-note"><strong>${def.label}</strong> — ${def.rec}</div>
-      <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} rekening (diurutkan dari tanggal buka rekening terbaru).</div>
+      <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} nasabah (diurutkan dari tanggal buka rekening terbaru).</div>
       <div class="opp-entry-list">${entries || '<div class="opp-detail-empty">Tidak ada nasabah yang cocok.</div>'}</div>
       ${loadMore}
     `;
@@ -1914,7 +1939,6 @@ function renderPriorityTab(){
   renderPriorityTable();
   $('badgePriority').textContent = State.priority.quadCounts.needsVisit;
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
-  renderKpiDplCard(getScopedCustomers());
 
   const p = State.priority;
   $('priorityTableHint').textContent =
@@ -2055,7 +2079,7 @@ function exportToExcel(){
       c.nama, c.cif, c.uker, c.worstKol, c.loans.length, c.totalPlafon, c.totalBakiDebet, c.totalTunggakan,
       c.tabungan.length, c.totalTabungan, c.giro.length, c.totalGiro, c.deposito.length, c.totalDeposito,
       c.totalFunding, c.edc.length+c.qris.length, c.totalMerchantVolume,
-      c.fundingCoverage!=null ? +(c.fundingCoverage*100).toFixed(2) : '', c.oppCount, c.opportunities.filter(k=>k!=='pinjaman').map(k=>OPP_DEFS[k].label).join('; ')
+      c.fundingCoverage!=null ? +(c.fundingCoverage*100).toFixed(2) : '', c.oppCount, c.opportunities.map(k=>OPP_DEFS[k].label).join('; ')
     ]);
     const summaryHeader = ['Nama Nasabah','CIF','Unit Kerja','Kol Terburuk','Jml Fasilitas','Total Plafon','Total Baki Debet','Total Tunggakan',
       'Jml Tabungan','Saldo Tabungan','Jml Giro','Saldo Giro','Jml Deposito','Nominal Deposito','Total Funding','Jml Merchant','Volume Merchant',
@@ -2072,16 +2096,16 @@ function exportToExcel(){
 
     Object.keys(OPP_DEFS).forEach(k => {
       const list = State.oppCategories[k] || [];
-      // "Pinjaman" (RM SME) draws from the funding-only-prospect list, a
-      // different shape (cif/nama/jenis/balance/openDt/ukerCode) than every
-      // other category (full Customer objects) — special-cased so it doesn't
-      // try to read .totalBakiDebet/.loans etc. that don't exist on it and
-      // throw partway through the export.
+      // "Pinjaman" (RM SME) draws from the unified pinjaman-opportunity list
+      // built by buildPinjamanOppList() — a different shape (cif/nama/
+      // produk[]/saldo/openDt/ukerCode/everHadLoan) than every other category
+      // (full Customer objects) — special-cased so it doesn't try to read
+      // .totalBakiDebet/.loans etc. that don't exist on it.
       const rows = k === 'pinjaman'
-        ? list.map(p => [p.nama, p.cif, p.jenis, p.balance, p.openDt, p.ukerCode])
+        ? list.map(p => [p.nama, p.cif, p.produk.join(', '), p.saldo, p.openDt, p.ukerCode, p.everHadLoan ? 'Kredit lunas/tidak aktif' : 'Belum pernah kredit'])
         : list.map(c => [c.nama, c.cif, c.uker, c.worstKol, c.totalBakiDebet, c.totalFunding, cleanPn(c.loans[0]?.pnPengelola)]);
       const header = k === 'pinjaman'
-        ? ['Nama','CIF','Jenis Rekening','Saldo','Tanggal Buka','Kode Unit Kerja']
+        ? ['Nama','CIF','Produk Dimiliki','Saldo/Funding','Tanggal Buka','Kode Unit Kerja','Status Kredit']
         : ['Nama','CIF','Unit Kerja','Kol','Baki Debet','Total Funding','RM Pengelola Kredit'];
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(OPP_DEFS[k].label));
