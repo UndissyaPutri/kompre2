@@ -576,7 +576,8 @@ table.data-table td.empty{text-align:center}
               <option value="noTabungan">Belum punya Tabungan</option>
               <option value="noGiro">Belum punya Giro</option>
               <option value="noDeposito">Belum punya Deposito</option>
-              <option value="noMerchant">Belum punya EDC/QRIS</option>
+              <option value="noMerchantEdc">Belum punya EDC</option>
+              <option value="noMerchantQris">Belum punya QRIS</option>
               <option value="hasOpp">Punya Relationship Opportunity</option>
             </select>
             <button class="btn btn-outline btn-sm" id="btnClearCustFilter">Reset</button>
@@ -1363,12 +1364,9 @@ function buildCustomers(){
     if(c.tabungan.length===0) opp.push('noTabungan');
     if(c.giro.length===0) opp.push('noGiro');
     if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
-    if(c.edc.length===0 || c.qris.length===0) opp.push('noMerchant');
+    if(c.edc.length===0) opp.push('noMerchantEdc');
+    if(c.qris.length===0) opp.push('noMerchantQris');
     if(c.worstKol >= 2) opp.push('kolWatch');
-    // Retention opportunity: any deposito maturing within the next 90 days —
-    // a window RMs can realistically act on (offer roll-over / reinvestment)
-    // before the money potentially leaves the bank at maturity.
-    if(c.deposito.some(t => { const d = parseFlexibleDate(t.matDt); return d && d >= new Date() && d <= new Date(Date.now()+90*86400000); })) opp.push('depositoJT');
     // "Currently has no active credit facility" — not "never had one". A
     // customer whose loan is fully paid off (Baki Debet = 0) but who still
     // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
@@ -1425,28 +1423,14 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
-  noTabungan: {tag:'TABUNGAN', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
-  noGiro:     {tag:'GIRO', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
-  noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
-  noMerchant: {tag:'EDC/QRIS', label:'Ekosistem EDC/QRIS', owner:'FT', sub:'Nasabah belum memiliki EDC dan/atau QRIS.', rec:'Peluang akuisisi ekosistem merchant (EDC/QRIS) khususnya untuk nasabah dengan usaha produktif, untuk memperluas fee based income & data transaksi.'},
-  depositoJT: {tag:'DEPOSITO JT', label:'Retensi Deposito Jatuh Tempo', owner:'FT', sub:'Deposito nasabah akan jatuh tempo dalam 90 hari ke depan.', rec:'Retention/reinvestment opportunity — hubungi nasabah sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau pengalihan ke produk funding lain, supaya dana tidak keluar dari BRI.'},
-  kolWatch:   {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:      {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  noTabungan:    {tag:'TABUNGAN', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
+  noGiro:        {tag:'GIRO', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
+  noDeposito:    {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
+  noMerchantEdc: {tag:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
+  noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
+  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
-
-/* Flexible date parser for the various DD/MM/YYYY, YYYY-MM-DD, etc. formats
-   that show up across LW321/CI324 exports — returns null on anything it
-   can't confidently parse rather than guessing wrong. */
-function parseFlexibleDate(str){
-  str = cleanStr(str);
-  if(!str) return null;
-  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(m) return new Date(+m[3], +m[2]-1, +m[1]);
-  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
-  const d = new Date(str);
-  return isNaN(d.getTime()) ? null : d;
-}
 
 function computeOppCategories(){
   const cats = {};
@@ -1673,7 +1657,8 @@ function applyCustFilters(){
     if(prod === 'noTabungan' && c.tabungan.length>0) return false;
     if(prod === 'noGiro' && c.giro.length>0) return false;
     if(prod === 'noDeposito' && !c.opportunities.includes('noDeposito')) return false;
-    if(prod === 'noMerchant' && (c.edc.length>0||c.qris.length>0)) return false;
+    if(prod === 'noMerchantEdc' && c.edc.length>0) return false;
+    if(prod === 'noMerchantQris' && c.qris.length>0) return false;
     if(prod === 'hasOpp' && c.oppCount===0) return false;
     if(q){
       const hay = `${c.nama} ${c.cif} ${c.loans.map(l=>l.noRekening).join(' ')}`.toLowerCase();
@@ -1961,18 +1946,6 @@ function buildOppInsightNote(c, key){
     // Kol ≥3 already handled above, so this only fires for Kol 2 entries here.
     return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
   }
-  if(key === 'depositoJT'){
-    // Semantically different from every other category here — the customer
-    // ALREADY has the product (Deposito), it's a retention/reinvestment
-    // opportunity because it's about to mature, not a "belum ada" gap. Using
-    // the generic missingLabel template for this produced a literal
-    // "undefined" in the message (that lookup has no depositoJT entry).
-    const today = new Date();
-    const in90 = new Date(Date.now()+90*86400000);
-    const maturing = c.deposito.filter(t => { const d = parseFlexibleDate(t.matDt); return d && d >= today && d <= in90; });
-    const totalMaturing = maturing.reduce((s,t)=>s+(t._principal||0),0);
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} punya ${maturing.length} deposito senilai <strong>${fmtRupiah(totalMaturing)}</strong> yang akan jatuh tempo dalam 90 hari ke depan — hubungi sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau produk funding lain, supaya dana tidak keluar dari BRI.</div>`;
-  }
 
   const owned = [];
   if(c.tabungan.length) owned.push('Tabungan');
@@ -1981,9 +1954,7 @@ function buildOppInsightNote(c, key){
   if(c.edc.length) owned.push('EDC');
   if(c.qris.length) owned.push('QRIS');
 
-  const missingLabel = key==='noMerchant'
-    ? [c.edc.length===0?'EDC':null, c.qris.length===0?'QRIS':null].filter(Boolean).join(' & ')
-    : {noTabungan:'Tabungan', noGiro:'Giro', noDeposito:'Deposito'}[key];
+  const missingLabel = {noTabungan:'Tabungan', noGiro:'Giro', noDeposito:'Deposito', noMerchantEdc:'EDC', noMerchantQris:'QRIS'}[key];
 
   let msg;
   if(owned.length){
@@ -2527,7 +2498,8 @@ function generateDummyCustomers(){
     if(c.tabungan.length===0) opp.push('noTabungan');
     if(c.giro.length===0) opp.push('noGiro');
     if(c.deposito.length===0 && c.totalFunding>50000000) opp.push('noDeposito');
-    if(c.edc.length===0 || c.qris.length===0) opp.push('noMerchant');
+    if(c.edc.length===0) opp.push('noMerchantEdc');
+    if(c.qris.length===0) opp.push('noMerchantQris');
     if(c.worstKol>=2) opp.push('kolWatch');
     c.opportunities = opp;
     c.oppCount = opp.length;
