@@ -441,7 +441,6 @@ table.data-table td.empty{text-align:center}
     <div class="header-actions" id="headerActions" style="display:none">
       <button class="btn btn-light" id="btnReset">↻ Upload Baru</button>
       <button class="btn btn-light" id="btnExportExcel">Export Excel</button>
-      <button class="btn btn-primary" id="btnPrint">Print</button>
     </div>
   </div>
 </header>
@@ -516,15 +515,15 @@ table.data-table td.empty{text-align:center}
       <p style="font-size:11.5px;color:var(--text-soft);margin:0 0 8px;font-style:italic">Catatan: Pinjaman &amp; Merchant mengikuti filter Regional/Cabang/Unit Kerja/RM di atas. Simpanan dihitung dari keseluruhan data (termasuk nasabah simpanan yang belum punya pinjaman), tidak ikut filter cabang.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
         <div>
-          <div class="detail-section-title">Pinjaman (LW321, sesuai filter)</div>
+          <div class="detail-section-title">Pinjaman</div>
           <div id="statsGridPinjaman"></div>
         </div>
         <div>
-          <div class="detail-section-title">Simpanan (keseluruhan data)</div>
+          <div class="detail-section-title">Simpanan</div>
           <div id="statsGridSimpanan"></div>
         </div>
         <div>
-          <div class="detail-section-title">Merchant (sesuai filter)</div>
+          <div class="detail-section-title">Merchant</div>
           <div id="statsGridMerchant"></div>
         </div>
       </div>
@@ -535,7 +534,7 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartKol"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Kepemilikan Produk Nasabah Existing</h3>
+          <h3>Kepemilikan Produk Nasabah (Keseluruhan Data)</h3>
           <div class="chart-canvas-wrap"><canvas id="chartProduk"></canvas></div>
         </div>
         <div class="chart-card">
@@ -618,14 +617,18 @@ table.data-table td.empty{text-align:center}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="input" id="oppSearch" placeholder="Cari nama nasabah atau CIF...">
           </div>
-          <div id="oppPinjamanFilterWrap" style="display:none;margin-bottom:12px;max-width:220px">
-            <select class="select" id="oppPinjamanJenisFilter">
-              <option value="">Semua Jenis Rekening</option>
+          <div id="oppPinjamanFilterWrap" style="display:none;margin-bottom:12px;gap:10px;flex-wrap:wrap">
+            <select class="select" id="oppPinjamanJenisFilter" style="max-width:220px">
+              <option value="">Semua Tipe Produk</option>
               <option value="Tabungan">Tabungan</option>
               <option value="Giro">Giro</option>
               <option value="Deposito">Deposito</option>
               <option value="EDC">EDC</option>
               <option value="QRIS">QRIS</option>
+            </select>
+            <select class="select" id="oppPinjamanSortFilter" style="max-width:220px">
+              <option value="tanggal">Urutkan: Tanggal Terbaru</option>
+              <option value="saldo">Urutkan: Jumlah Saldo Terbesar</option>
             </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
@@ -1091,7 +1094,28 @@ function buildCustomers(){
   // touch a bigger customer set and was the actual performance regression;
   // keeping it as its own small array keeps the core universe untouched.
   const diagCounts = {DI319:{total:0,matched:0}, DI321:{total:0,matched:0}, CI324:{total:0,matched:0,fuzzy:0}, EDC:{total:0,matched:0}, QRIS:{total:0,matched:0}};
-  const fundingOnlyProspects = []; // {cif, nama, jenis, openDt, balance, ukerCode}
+  // Funding/merchant-only prospects — customers with NO CIF match anywhere in
+  // LW321, aggregated ONE ENTRY PER CIF across all their products (an
+  // earlier version kept only their single newest product, which
+  // under-counted anyone with more than one — e.g. someone with both
+  // Tabungan and QRIS would only show up as one or the other). Deposito
+  // still can't be captured here: CI324 has no CIF column at all, so a
+  // name-only match only ever works against customers already in LW321 — a
+  // genuinely new deposito-only prospect can never be identified from that
+  // file alone, which is a real data limitation, not a bug.
+  const prospectMap = new Map();
+  function getProspect(cif, nama, ukerCode){
+    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', tabungan:0, tabunganSum:0, giro:0, giroSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
+    const p = prospectMap.get(cif);
+    if(!p.nama && nama) p.nama = nama;
+    if(!p.ukerCode && ukerCode) p.ukerCode = ukerCode;
+    return p;
+  }
+  function bumpOpenDt(p, dt){
+    dt = cleanStr(dt);
+    if(dt && dt > p.latestOpenDt) p.latestOpenDt = dt;
+  }
+
   (State.raw['DI319']||[]).forEach(row => {
     diagCounts.DI319.total++;
     const cif = cleanStr(row.cif);
@@ -1100,7 +1124,9 @@ function buildCustomers(){
       customers.get(cif).tabungan.push(row);
       diagCounts.DI319.matched++;
     } else if(cif){
-      fundingOnlyProspects.push({cif, nama:cleanStr(row.shortName), jenis:'Tabungan', openDt:cleanStr(row.openDt), balance:parseNum(row.balance), ukerCode:cleanStr(row.ukerCode)});
+      const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.ukerCode));
+      p.tabungan++; p.tabunganSum += parseNum(row.balance);
+      bumpOpenDt(p, row.openDt);
     }
   });
 
@@ -1113,18 +1139,11 @@ function buildCustomers(){
       customers.get(cif).giro.push(row);
       diagCounts.DI321.matched++;
     } else if(cif){
-      fundingOnlyProspects.push({cif, nama:cleanStr(row.shortName), jenis:'Giro', openDt:cleanStr(row.openDate), balance:parseNum(row.balance), ukerCode:cleanStr(row.kodeUker)});
+      const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.kodeUker));
+      p.giro++; p.giroSum += parseNum(row.balance);
+      bumpOpenDt(p, row.openDate);
     }
   });
-  // Dedupe to one row per CIF (a customer might have both Tabungan and Giro
-  // captured above) — keep the one with the most recent open date so
-  // "urutkan dari yang terbaru" reflects their newest funding relationship.
-  const fundingOnlyByCif = new Map();
-  fundingOnlyProspects.forEach(p => {
-    const existing = fundingOnlyByCif.get(p.cif);
-    if(!existing || (p.openDt && p.openDt > existing.openDt)) fundingOnlyByCif.set(p.cif, p);
-  });
-  State.fundingOnlyProspects = [...fundingOnlyByCif.values()].sort((a,b) => (b.openDt||'').localeCompare(a.openDt||''));
 
   // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs NAMA_DEBITUR
   const nameIndex = new Map(); // normName -> cif (first match); handles prefix-truncated short names too
@@ -1158,6 +1177,9 @@ function buildCustomers(){
       row._trx = parseNum(row.akumulasiTransaksi || row.jmlTransaksi);
       customers.get(cif).edc.push(row);
       diagCounts.EDC.matched++;
+    } else if(cif){
+      const p = getProspect(cif, cleanStr(row.namaMerchant), '');
+      p.edc++; p.edcSum += parseNum(row.akumulasiSalesVolume || row.salesVolume);
     }
   });
 
@@ -1170,8 +1192,13 @@ function buildCustomers(){
       row._trx = parseNum(row.akumulasiTrxTotal);
       customers.get(cif).qris.push(row);
       diagCounts.QRIS.matched++;
+    } else if(cif){
+      const p = getProspect(cif, cleanStr(row.namaMerchant), '');
+      p.qris++; p.qrisSum += parseNum(row.akumulasiSvTotal);
     }
   });
+
+  State.fundingOnlyProspects = [...prospectMap.values()].sort((a,b) => (b.latestOpenDt||'').localeCompare(a.latestOpenDt||''));
 
   // 7. Compute aggregates & opportunity flags per customer
   customers.forEach(c => {
@@ -1210,8 +1237,14 @@ function buildCustomers(){
     // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
     // candidate as someone who was never in LW321 at all (see the separate
     // fundingOnlyProspects capture above, merged with this in
-    // computeOppCategories/buildPinjamanOppList).
-    if(c.totalBakiDebet === 0 && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)) opp.push('pinjaman');
+    // computeOppCategories/buildPinjamanOppList). BUT Baki Debet = 0 can also
+    // happen on a facility that's still technically active (e.g. right after
+    // the last installment clears, before the record is formally closed) —
+    // NEXT_PMT_DATE still being populated is the best available signal that
+    // a facility isn't actually finished yet, so only treat Baki Debet = 0 as
+    // a real opportunity when none of the customer's loans still have one.
+    const hasNoScheduledPayment = !c.loans.some(l => cleanStr(l.nextPmtDate));
+    if(c.totalBakiDebet === 0 && hasNoScheduledPayment && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)) opp.push('pinjaman');
     c.opportunities = opp;
     c.oppCount = opp.length;
   });
@@ -1258,7 +1291,14 @@ function computeOppCategories(){
 function buildPinjamanOppList(){
   const entries = [];
   (State.fundingOnlyProspects || []).forEach(p => {
-    entries.push({cif:p.cif, nama:p.nama, produk:[p.jenis], saldo:p.balance, openDt:p.openDt, ukerCode:p.ukerCode, everHadLoan:false});
+    const produk = [];
+    if(p.tabungan) produk.push('Tabungan');
+    if(p.giro) produk.push('Giro');
+    if(p.edc) produk.push('EDC');
+    if(p.qris) produk.push('QRIS');
+    if(!produk.length) return;
+    const saldo = p.tabunganSum + p.giroSum + p.edcSum + p.qrisSum;
+    entries.push({cif:p.cif, nama:p.nama, produk, saldo, openDt:p.latestOpenDt, ukerCode:p.ukerCode, everHadLoan:false});
   });
   getScopedCustomers().forEach(c => {
     if(!c.opportunities.includes('pinjaman')) return;
@@ -1375,32 +1415,36 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   });
 
   let totalNasabahSimpanan = custSimpananCount;
+  let totalNasabahMerchantCombined = custMerchantCount;
   if(combineProspects){
     const prospects = State.fundingOnlyProspects || [];
     prospects.forEach(p => {
-      if(p.jenis === 'Tabungan'){ agg.tabungan.sum += p.balance; agg.tabungan.count++; }
-      else if(p.jenis === 'Giro'){ agg.giro.sum += p.balance; agg.giro.count++; }
+      if(p.tabungan){ agg.tabungan.sum += p.tabunganSum; agg.tabungan.count += p.tabungan; }
+      if(p.giro){ agg.giro.sum += p.giroSum; agg.giro.count += p.giro; }
+      if(p.edc){ agg.edc.sum += p.edcSum; agg.edc.count += p.edc; }
+      if(p.qris){ agg.qris.sum += p.qrisSum; agg.qris.count += p.qris; }
     });
-    totalNasabahSimpanan += prospects.length;
+    totalNasabahSimpanan += prospects.filter(p => p.tabungan || p.giro).length;
+    totalNasabahMerchantCombined += prospects.filter(p => p.edc || p.qris).length;
   }
   const totalFunding = agg.tabungan.sum + agg.giro.sum + agg.deposito.sum;
 
   const pinjamanCards = [
     {label:'Total Nasabah Pinjaman', value:custs.length, sub:'existing customer dari LW321', cls:'accent'},
-    {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${custs.reduce((s,c)=>s+c.loans.length,0)} fasilitas kredit`, cls:''},
+    {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${fmtNum(custs.reduce((s,c)=>s+c.loans.length,0))} fasilitas kredit dari ${fmtNum(custs.length)} nasabah — satu nasabah bisa punya lebih dari satu fasilitas`, cls:''},
     {label:'Total Baki Debet', value:fmtRupiah(totalBaki), sub:'outstanding aktif', cls:''},
   ];
   const simpananCards = [
     {label:'Total Nasabah Simpanan', value:totalNasabahSimpanan, sub:combineProspects?'termasuk nasabah simpanan tanpa pinjaman':'dari nasabah pinjaman ini saja', cls:'accent'},
-    {label:'Total Funding', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito', cls:'success'},
-    {label:'Tabungan', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening`, cls:''},
+    {label:'Total Simpanan', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito', cls:'success'},
+    {label:'Tabungan', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening — satu nasabah bisa punya lebih dari satu rekening`, cls:''},
     {label:'Giro', value:fmtRupiah(agg.giro.sum), sub:`${fmtNum(agg.giro.count)} rekening`, cls:''},
     {label:'Deposito', value:fmtRupiah(agg.deposito.sum), sub:`${fmtNum(agg.deposito.count)} rekening`, cls:''},
   ];
   const merchantCards = [
-    {label:'Total Nasabah Merchant', value:custMerchantCount, sub:'punya EDC dan/atau QRIS', cls:'accent'},
-    {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} transaksi`, cls:''},
-    {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} transaksi`, cls:''},
+    {label:'Total Nasabah Merchant', value:totalNasabahMerchantCombined, sub:combineProspects?'punya EDC dan/atau QRIS, termasuk nasabah merchant tanpa pinjaman':'punya EDC dan/atau QRIS', cls:'accent'},
+    {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} akumulasi transaksi (sejak merchant terdaftar, bukan periode tertentu)`, cls:''},
+    {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} akumulasi transaksi (sejak merchant terdaftar, bukan periode tertentu)`, cls:''},
   ];
   const renderTable = list => `
     <div class="table-wrap"><table class="data-table">
@@ -1746,12 +1790,18 @@ function selectOpp(k, resetPinjamanPage=true){
   // The Tabungan/Giro filter only makes sense for the Pinjaman category (the
   // other categories aren't split by product type this way) — only shown
   // when that category is active.
-  $('oppPinjamanFilterWrap').style.display = k === 'pinjaman' ? 'block' : 'none';
+  $('oppPinjamanFilterWrap').style.display = k === 'pinjaman' ? 'flex' : 'none';
 
   if(k === 'pinjaman'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
     if(jenisFilter) list = list.filter(p => p.produk.includes(jenisFilter));
+    // list may still be the same array reference as State.oppCategories.pinjaman
+    // if no filter/search narrowed it down — always slice() before sorting so
+    // we never mutate the shared source array (which stays newest-first by
+    // default for every other consumer, e.g. the Excel export).
+    const sortMode = $('oppPinjamanSortFilter') ? $('oppPinjamanSortFilter').value : 'tanggal';
+    list = sortMode === 'saldo' ? list.slice().sort((a,b)=>b.saldo-a.saldo) : list.slice();
     const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
     const visible = list.slice(0, pageSize);
     const entries = visible.map(p => `
@@ -1809,6 +1859,7 @@ function growPinjamanOppPage(){
 window.growPinjamanOppPage = growPinjamanOppPage;
 $('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp, true); });
 $('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
+$('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', false); });
 
 /* ===================================================================
    PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
@@ -1988,12 +2039,32 @@ function renderCharts(){
   const custs = getScopedCustomers();
   const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
 
+  const barValueLabelPlugin = {
+    id: 'barValueLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      chart.data.datasets.forEach((dataset, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, i) => {
+          const value = dataset.data[i];
+          ctx.save();
+          ctx.fillStyle = '#0b2540';
+          ctx.font = '700 11px Segoe UI, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(fmtNum(value), bar.x, bar.y - 6);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
   const kolCount = {1:0,2:0,3:0,4:0,5:0};
   custs.forEach(c => kolCount[c.worstKol] = (kolCount[c.worstKol]||0)+1);
   State.charts.kol = new Chart($('chartKol'), {
     type:'bar',
     data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#d69a12','#e07b1f','#d6592f','#d64545'], borderRadius:6}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
+    plugins:[barValueLabelPlugin]
   });
 
   const prodCount = {Tabungan:0,Giro:0,Deposito:0,EDC:0,QRIS:0};
@@ -2003,6 +2074,17 @@ function renderCharts(){
     if(c.deposito.length) prodCount.Deposito++;
     if(c.edc.length) prodCount.EDC++;
     if(c.qris.length) prodCount.QRIS++;
+  });
+  // Fold in funding/merchant-only prospects too — this chart previously only
+  // counted loan-anchored customers, which made "Tabungan" here look far
+  // smaller than the real total shown in the Simpanan table (which already
+  // combines both sources). Deposito stays loan-customer-only: CI324 has no
+  // CIF column, so a genuinely new deposito-only prospect can't be identified.
+  (State.fundingOnlyProspects||[]).forEach(p => {
+    if(p.tabungan) prodCount.Tabungan++;
+    if(p.giro) prodCount.Giro++;
+    if(p.edc) prodCount.EDC++;
+    if(p.qris) prodCount.QRIS++;
   });
   State.charts.produk = new Chart($('chartProduk'), {
     type:'doughnut',
@@ -2037,27 +2119,6 @@ function renderCharts(){
     else if(cov <= 50) covBuckets['>25–50%']++;
     else covBuckets['>50%']++;
   });
-  // Draws the count directly above each bar instead of relying on Y-axis
-  // tick numbers — reads faster at a glance and lets the axis itself stay
-  // clean/unlabeled.
-  const barValueLabelPlugin = {
-    id: 'barValueLabelPlugin',
-    afterDatasetsDraw(chart){
-      const {ctx} = chart;
-      chart.data.datasets.forEach((dataset, di) => {
-        const meta = chart.getDatasetMeta(di);
-        meta.data.forEach((bar, i) => {
-          const value = dataset.data[i];
-          ctx.save();
-          ctx.fillStyle = '#0b2540';
-          ctx.font = '700 11px Segoe UI, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(fmtNum(value), bar.x, bar.y - 6);
-          ctx.restore();
-        });
-      });
-    }
-  };
   State.charts.coverageDist = new Chart($('chartCoverageDist'), {
     type:'bar',
     data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#d64545','#e0824a','#e07b1f','#d69a12','#2e78d6','#0a9d6e'], borderRadius:4}]},
@@ -2301,7 +2362,6 @@ setupGlobalDrop();
 
 $('btnProcess').addEventListener('click', processAll);
 $('btnExportExcel').addEventListener('click', exportToExcel);
-$('btnPrint').addEventListener('click', () => { showToast('Membuka dialog print...', 'info'); setTimeout(()=>window.print(), 200); });
 $('btnReset').addEventListener('click', () => { if(confirm('Yakin ingin upload ulang? Data saat ini akan dihapus.')) location.reload(); });
 
 document.querySelectorAll('.tab').forEach(t => {
