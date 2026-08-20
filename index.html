@@ -818,6 +818,51 @@ function findPairedRmFt(rmSmeValue){
   return pair ? pair.rmFt : null;
 }
 
+/* Reverse of findPairedRmFt — given an RM FT, find their paired RM SME. Used
+   to widen Relationship Opportunity when filtering by RM FT: a customer with
+   NO funding products at all has an empty rmFundingList and would otherwise
+   never match any RM FT filter, even though their loan is managed by that
+   RM FT's paired RM SME partner — which is exactly the shared-pipeline case
+   that RM FT should see as an opportunity (nobody manages this customer's
+   funding yet, that's the whole opportunity). */
+function findPairedRmSme(rmFtValue){
+  if(!rmFtValue) return null;
+  if(State.inferredRmPairing){
+    for(const [sme, ft] of State.inferredRmPairing.entries()){
+      if(ft.toUpperCase().includes(rmFtValue.toUpperCase()) || rmFtValue.toUpperCase().includes(ft.toUpperCase())) return sme;
+    }
+  }
+  const upper = rmFtValue.toUpperCase();
+  const pair = RM_PAIRING.find(p => upper.includes(p.rmFt.toUpperCase()));
+  return pair ? pair.rmSme : null;
+}
+
+/* Same scope as getScopedCustomers (Kanwil/Kanca/Uker/RM Pengelola Kredit),
+   but widens the RM Pengelola FT filter specifically for opportunity
+   detection: includes not just customers whose EXISTING funding accounts
+   are managed by that RM FT, but also customers whose loan is managed by
+   that RM FT's paired RM SME partner — covering customers with zero funding
+   products, who would otherwise be invisible to their own paired RM FT.
+   Deliberately kept separate from getScopedCustomers (used everywhere else:
+   Ringkasan totals, Customer 360, Prioritas Pengelolaan) so this widening
+   only affects Relationship Opportunity, not portfolio-wide numbers. */
+function getOppScopedCustomers(){
+  const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
+  let list = [...State.customers.values()];
+  if(kanwil) list = list.filter(c => c.kanwil === kanwil);
+  if(kanca) list = list.filter(c => c.kanca === kanca);
+  if(uker) list = list.filter(c => c.uker === uker);
+  if(rm) list = list.filter(c => c.rmPengelola === rm);
+  if(rmFt){
+    const pairedSme = findPairedRmSme(rmFt);
+    list = list.filter(c =>
+      (c.rmFundingList && c.rmFundingList.some(name => name.toUpperCase().includes(rmFt.toUpperCase()))) ||
+      (pairedSme && c.rmPengelola && c.rmPengelola.toUpperCase().includes(pairedSme.toUpperCase()))
+    );
+  }
+  return list;
+}
+
 function getScopedFundingOnlyProspects(){
   let list = State.fundingOnlyProspects || [];
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
@@ -1389,15 +1434,6 @@ const OPP_DEFS = {
   kolWatch:   {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
 
-/* Prioritas/Private value-tier badge for high-value opportunities (used on
-   Peluang Pinjaman entries) — thresholds follow BRI's own wealth-segment
-   convention (Prioritas ≥ Rp 1 miliar, Private ≥ Rp 15 miliar). */
-function getValueTier(amount){
-  if(amount >= 15000000000) return {label:'PRIVATE', color:'#7e57c2'};
-  if(amount >= 1000000000) return {label:'PRIORITAS', color:'#d69a12'};
-  return null;
-}
-
 /* Flexible date parser for the various DD/MM/YYYY, YYYY-MM-DD, etc. formats
    that show up across LW321/CI324 exports — returns null on anything it
    can't confidently parse rather than guessing wrong. */
@@ -1415,7 +1451,7 @@ function parseFlexibleDate(str){
 function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
-  getScopedCustomers().forEach(c => {
+  getOppScopedCustomers().forEach(c => {
     c.opportunities.forEach(k => { if(k !== 'pinjaman' && cats[k]) cats[k].push(c); });
   });
   cats.pinjaman = buildPinjamanOppList();
@@ -1446,7 +1482,7 @@ function buildPinjamanOppList(){
     const saldo = p.tabunganSum + p.giroSum + p.edcSum + p.qrisSum;
     entries.push({cif:p.cif, nama:p.nama, produk, saldo, openDt:p.latestOpenDt, ukerCode:p.ukerCode, everHadLoan:false});
   });
-  getScopedCustomers().forEach(c => {
+  getOppScopedCustomers().forEach(c => {
     if(!c.opportunities.includes('pinjaman')) return;
     const produk = [];
     if(c.tabungan.length) produk.push('Tabungan');
@@ -1614,7 +1650,7 @@ function renderKpiDplCard(custs){
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
   const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
   const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
-  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan SME = ${actualPct.toFixed(1)}%`;
+  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan = ${actualPct.toFixed(1)}%`;
 }
 
 function renderStats(){
@@ -1892,7 +1928,6 @@ function renderOppGrid(){
         <div class="opp-count">${list.length}</div>
         <div class="opp-label">${def.label}</div>
         <div class="opp-sub">${def.sub}</div>
-        <div style="margin-top:6px;font-size:10.5px;font-weight:700;color:var(--text-soft)">Owner: ${def.owner}</div>
       </div>
     `;
   }).join('');
@@ -1996,11 +2031,10 @@ function selectOpp(k, resetPinjamanPage=true){
     const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
     const visible = list.slice(0, pageSize);
     const entries = visible.map(p => {
-      const tier = getValueTier(p.saldo);
       return `
       <div class="opp-entry">
         <div class="opp-entry-head">
-          <span>${p.everHadLoan ? `<a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">${escapeHtml(p.nama || '(tanpa nama)')}</a>` : escapeHtml(p.nama || '(tanpa nama)')}${tier ? ` <span class="badge-pill" style="background:${tier.color};color:#fff;font-weight:800">${tier.label}</span>` : ''}</span>
+          <span><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">${escapeHtml(p.nama || '(tanpa nama)')}</a></span>
           <span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span>
         </div>
         <div class="detail-grid">
