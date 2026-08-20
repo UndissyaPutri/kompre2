@@ -506,6 +506,7 @@ table.data-table td.empty{text-align:center}
 
     <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 8px;font-style:italic">Catatan: Angka di card ini adalah portfolio sesuai filter yang sedang aktif di atas (Regional/Cabang/Unit Kerja/RM) — bukan total keseluruhan cabang. Kosongkan filter atau klik "Reset Filter" untuk melihat total seluruh nasabah.</p>
     <div class="stats-grid" id="statsGrid"></div>
+    <div class="stats-grid" id="statsGridProducts" style="margin-top:10px"></div>
 
     <div class="tabs no-print" role="tablist">
       <button class="tab active" data-panel="overview">Ringkasan</button>
@@ -542,10 +543,6 @@ table.data-table td.empty{text-align:center}
               <tbody id="coverageDistBody"></tbody>
             </table>
           </div>
-        </div>
-        <div class="chart-card">
-          <h3>Deposit to Loan Rendah (&lt;5%) vs Deposit to Loan Sehat (≥5%)</h3>
-          <div class="stats-grid" id="coverageThresholdStats"></div>
         </div>
       </div>
     </div>
@@ -607,15 +604,25 @@ table.data-table td.empty{text-align:center}
             <div class="panel-title">Relationship Opportunity</div>
             <div style="font-size:11.5px;color:rgba(255,255,255,.72);margin-top:2px;font-style:italic">"Apa yang masih bisa dikembangkan dari customer ini?" — funding gap, product/transaction gap, dan rekomendasi aksi.</div>
           </div>
-          <div class="panel-actions"><span style="font-size:11.5px;color:var(--text-muted)">Klik kategori untuk melihat daftar nasabah</span></div>
         </div>
         <div class="panel-body">
+          <div class="detail-section-title">Peluang RM FT — Nasabah Sudah Punya Pinjaman, Belum Lengkap Funding/Merchant</div>
+          <p class="upload-hint" style="margin-bottom:10px">Nasabah existing pinjaman (LW321) yang belum punya Tabungan/Giro/Deposito/EDC/QRIS — klik kategori untuk lihat daftar nasabahnya.</p>
           <div class="opp-grid" id="oppGrid"></div>
           <div class="search-wrap no-print" style="margin-bottom:12px;max-width:420px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="input" id="oppSearch" placeholder="Cari nama nasabah atau CIF...">
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
+
+          <div class="detail-section-title" style="margin-top:24px">Peluang RM SME — Nasabah Sudah Punya Simpanan, Belum Punya Pinjaman</div>
+          <p class="upload-hint" style="margin-bottom:10px" id="smeOppHint">Nasabah dengan Tabungan/Giro (DI319/DI321) yang CIF-nya tidak ditemukan di LW321 (belum pernah punya fasilitas kredit) — diurutkan dari rekening yang paling baru dibuka, kandidat pipeline kredit untuk RM SME.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="smeOppTable">
+              <thead><tr><th>Nama</th><th>CIF</th><th>Jenis Rekening</th><th class="num">Saldo</th><th>Tanggal Buka</th><th>Unit Kerja</th></tr></thead>
+              <tbody id="smeOppBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -682,15 +689,6 @@ table.data-table td.empty{text-align:center}
 
   </section>
 
-  <div id="statsDetailModal" style="display:none;position:fixed;inset:0;background:rgba(11,37,64,.55);z-index:2000;align-items:center;justify-content:center;padding:20px">
-    <div style="background:#fff;border-radius:var(--radius);max-width:520px;width:100%;max-height:80vh;overflow:auto;padding:22px;box-shadow:var(--shadow-lg)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h3 id="statsDetailModalTitle" style="font-size:15px;color:var(--brand-darker)"></h3>
-        <button onclick="closeStatsDetailModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-soft);line-height:1">✕</button>
-      </div>
-      <div id="statsDetailModalBody"></div>
-    </div>
-  </div>
 </main>
 
 <script>
@@ -1066,9 +1064,16 @@ function buildCustomers(){
   });
 
   // 2. Tabungan (DI319) — exact CIF match. Rows for a CIF that isn't in the
-  // loan-based universe are simply skipped (LW321/pinjaman is the anchor for
-  // the whole app's customer universe).
+  // loan-based universe are simply skipped from the main customer objects
+  // (LW321/pinjaman is still the anchor for the whole app's customer
+  // universe, portfolio stats, filters, etc.) — but captured into a light,
+  // separate list below for the "RM SME: Simpanan Tanpa Pinjaman" opportunity
+  // category. This is deliberately NOT merged into `customers` like an
+  // earlier version of this feature did — that made every render function
+  // touch a bigger customer set and was the actual performance regression;
+  // keeping it as its own small array keeps the core universe untouched.
   const diagCounts = {DI319:{total:0,matched:0}, DI321:{total:0,matched:0}, CI324:{total:0,matched:0,fuzzy:0}, EDC:{total:0,matched:0}, QRIS:{total:0,matched:0}};
+  const fundingOnlyProspects = []; // {cif, nama, jenis, openDt, balance, ukerCode}
   (State.raw['DI319']||[]).forEach(row => {
     diagCounts.DI319.total++;
     const cif = cleanStr(row.cif);
@@ -1076,6 +1081,8 @@ function buildCustomers(){
       row._balance = parseNum(row.balance);
       customers.get(cif).tabungan.push(row);
       diagCounts.DI319.matched++;
+    } else if(cif){
+      fundingOnlyProspects.push({cif, nama:cleanStr(row.shortName), jenis:'Tabungan', openDt:cleanStr(row.openDt), balance:parseNum(row.balance), ukerCode:cleanStr(row.ukerCode)});
     }
   });
 
@@ -1087,8 +1094,19 @@ function buildCustomers(){
       row._balance = parseNum(row.balance);
       customers.get(cif).giro.push(row);
       diagCounts.DI321.matched++;
+    } else if(cif){
+      fundingOnlyProspects.push({cif, nama:cleanStr(row.shortName), jenis:'Giro', openDt:cleanStr(row.openDate), balance:parseNum(row.balance), ukerCode:cleanStr(row.kodeUker)});
     }
   });
+  // Dedupe to one row per CIF (a customer might have both Tabungan and Giro
+  // captured above) — keep the one with the most recent open date so
+  // "urutkan dari yang terbaru" reflects their newest funding relationship.
+  const fundingOnlyByCif = new Map();
+  fundingOnlyProspects.forEach(p => {
+    const existing = fundingOnlyByCif.get(p.cif);
+    if(!existing || (p.openDt && p.openDt > existing.openDt)) fundingOnlyByCif.set(p.cif, p);
+  });
+  State.fundingOnlyProspects = [...fundingOnlyByCif.values()].sort((a,b) => (b.openDt||'').localeCompare(a.openDt||''));
 
   // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs NAMA_DEBITUR
   const nameIndex = new Map(); // normName -> cif (first match); handles prefix-truncated short names too
@@ -1287,11 +1305,11 @@ function renderStats(){
     {label:'Total Nasabah (CIF)', value:custs.length, sub:'existing customer dari LW321', cls:'accent'},
     {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${custs.reduce((s,c)=>s+c.loans.length,0)} fasilitas kredit`, cls:''},
     {label:'Total Baki Debet', value:fmtRupiah(totalBaki), sub:'outstanding aktif', cls:''},
-    {label:'Total Funding (T+G+D)', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito · klik untuk rincian', cls:'success', onclick:'openFundingDetailModal()'},
-    {label:'Nasabah dengan Merchant', value:custMerchant, sub:'punya EDC dan/atau QRIS · klik untuk rincian', cls:'', onclick:'openMerchantDetailModal()'},
+    {label:'Total Funding (T+G+D)', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito — rincian per produk di bawah', cls:'success'},
+    {label:'Nasabah dengan Merchant', value:custMerchant, sub:'punya EDC dan/atau QRIS — rincian per produk di bawah', cls:''},
   ];
   $('statsGrid').innerHTML = cards.map(c => `
-    <div class="stat-card ${c.cls}" ${c.onclick?`style="cursor:pointer" onclick="${c.onclick}"`:''}>
+    <div class="stat-card ${c.cls}">
       <div class="stat-label">${c.label}</div>
       <div class="stat-value">${typeof c.value==='number' ? fmtNum(c.value) : c.value}</div>
       <div class="stat-sub">${c.sub}</div>
@@ -1299,59 +1317,39 @@ function renderStats(){
   `).join('');
   $('badgeCust').textContent = custs.length;
   $('badgeOpp').textContent = custWithOpp;
+
+  renderProductBreakdownStats(custs);
 }
 
-/* Drill-down popups for the two composite stat cards above — since "Total
-   Funding" and "Nasabah dengan Merchant" are each a sum across three/two
-   source files, showing the per-product breakdown lets the person verify
-   the total themselves instead of just trusting one combined number. */
-function openFundingDetailModal(){
-  const custs = getScopedCustomers();
-  const agg = {tabungan:{sum:0,count:0}, giro:{sum:0,count:0}, deposito:{sum:0,count:0}};
+/* Per-product breakdown, always visible right under the summary cards above
+   (instead of behind a click-to-open modal) — "Total Funding" and "Nasabah
+   dengan Merchant" are each a sum across several source files, so seeing the
+   Tabungan/Giro/Deposito/EDC/QRIS split directly lets the person verify the
+   combined numbers at a glance without an extra click. */
+function renderProductBreakdownStats(custs){
+  const agg = {tabungan:{sum:0,count:0}, giro:{sum:0,count:0}, deposito:{sum:0,count:0}, edc:{sum:0,count:0,trx:0}, qris:{sum:0,count:0,trx:0}};
   custs.forEach(c => {
     agg.tabungan.sum += c.totalTabungan; agg.tabungan.count += c.tabungan.length;
     agg.giro.sum += c.totalGiro; agg.giro.count += c.giro.length;
     agg.deposito.sum += c.totalDeposito; agg.deposito.count += c.deposito.length;
-  });
-  const totalSum = agg.tabungan.sum + agg.giro.sum + agg.deposito.sum;
-  const totalCount = agg.tabungan.count + agg.giro.count + agg.deposito.count;
-  $('statsDetailModalTitle').textContent = 'Rincian Total Funding';
-  $('statsDetailModalBody').innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Produk</th><th class="num">Jml Rekening</th><th class="num">Total Saldo</th></tr></thead>
-      <tbody>
-        <tr><td>Tabungan (DI319)</td><td class="num">${fmtNum(agg.tabungan.count)}</td><td class="num">${fmtRupiah(agg.tabungan.sum)}</td></tr>
-        <tr><td>Giro (DI321)</td><td class="num">${fmtNum(agg.giro.count)}</td><td class="num">${fmtRupiah(agg.giro.sum)}</td></tr>
-        <tr><td>Deposito (CI324)</td><td class="num">${fmtNum(agg.deposito.count)}</td><td class="num">${fmtRupiah(agg.deposito.sum)}</td></tr>
-        <tr style="font-weight:700"><td>Total</td><td class="num">${fmtNum(totalCount)}</td><td class="num">${fmtRupiah(totalSum)}</td></tr>
-      </tbody>
-    </table></div>
-  `;
-  $('statsDetailModal').style.display = 'flex';
-}
-function openMerchantDetailModal(){
-  const custs = getScopedCustomers();
-  const agg = {edc:{sum:0,count:0,trx:0}, qris:{sum:0,count:0,trx:0}};
-  custs.forEach(c => {
     c.edc.forEach(m => { agg.edc.sum += m._volume||0; agg.edc.trx += m._trx||0; agg.edc.count++; });
     c.qris.forEach(m => { agg.qris.sum += m._volume||0; agg.qris.trx += m._trx||0; agg.qris.count++; });
   });
-  $('statsDetailModalTitle').textContent = 'Rincian Merchant EDC & QRIS';
-  $('statsDetailModalBody').innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Jenis</th><th class="num">Jml Merchant</th><th class="num">Jml Transaksi</th><th class="num">Volume</th></tr></thead>
-      <tbody>
-        <tr><td>EDC</td><td class="num">${fmtNum(agg.edc.count)}</td><td class="num">${fmtNum(agg.edc.trx)}</td><td class="num">${fmtRupiah(agg.edc.sum)}</td></tr>
-        <tr><td>QRIS</td><td class="num">${fmtNum(agg.qris.count)}</td><td class="num">${fmtNum(agg.qris.trx)}</td><td class="num">${fmtRupiah(agg.qris.sum)}</td></tr>
-      </tbody>
-    </table></div>
-  `;
-  $('statsDetailModal').style.display = 'flex';
+  const cards = [
+    {label:'Tabungan (DI319)', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening`, cls:''},
+    {label:'Giro (DI321)', value:fmtRupiah(agg.giro.sum), sub:`${fmtNum(agg.giro.count)} rekening`, cls:''},
+    {label:'Deposito (CI324)', value:fmtRupiah(agg.deposito.sum), sub:`${fmtNum(agg.deposito.count)} rekening`, cls:''},
+    {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} transaksi`, cls:''},
+    {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} transaksi`, cls:''},
+  ];
+  $('statsGridProducts').innerHTML = cards.map(c => `
+    <div class="stat-card ${c.cls}">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-value" style="font-size:16px">${c.value}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>
+  `).join('');
 }
-function closeStatsDetailModal(){ $('statsDetailModal').style.display = 'none'; }
-window.openFundingDetailModal = openFundingDetailModal;
-window.openMerchantDetailModal = openMerchantDetailModal;
-window.closeStatsDetailModal = closeStatsDetailModal;
 
 
 /* ===================================================================
@@ -1608,6 +1606,35 @@ function renderOppGrid(){
   const firstNonEmpty = Object.keys(OPP_DEFS).find(k => State.oppCategories[k].length > 0);
   if(firstNonEmpty) selectOpp(firstNonEmpty);
   else $('oppDetail').innerHTML = '<div class="opp-detail-empty">Tidak ada peluang bisnis yang terdeteksi dari data saat ini.</div>';
+  renderSmeOppTable();
+}
+
+/* RM SME angle: customers who already have a savings/current account
+   relationship (Tabungan/Giro) but no CIF match in LW321 at all — i.e. never
+   had a BRI credit facility. This is a genuine lending pipeline signal, kept
+   deliberately separate from the main customer universe/opportunity system
+   (see buildCustomers) so it can't slow down anything else in the app.
+   Capped to the newest 200 accounts — thousands of rows in one table is both
+   slow to render and not actionable anyway; the newest ones are the most
+   relevant leads regardless of portfolio size. */
+function renderSmeOppTable(){
+  const all = State.fundingOnlyProspects || [];
+  const SME_OPP_CAP = 200;
+  const rows = all.slice(0, SME_OPP_CAP);
+  $('smeOppBody').innerHTML = rows.map(p => `
+    <tr>
+      <td><strong>${escapeHtml(p.nama || '(tanpa nama)')}</strong></td>
+      <td>${escapeHtml(p.cif)}</td>
+      <td>${escapeHtml(p.jenis)}</td>
+      <td class="num">${fmtRupiah(p.balance)}</td>
+      <td>${escapeHtml(p.openDt || '-')}</td>
+      <td>${escapeHtml(p.ukerCode || '-')}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">Tidak ada nasabah simpanan tanpa pinjaman pada data saat ini.</td></tr>';
+  const hint = all.length > SME_OPP_CAP
+    ? `Menampilkan ${SME_OPP_CAP} rekening terbaru dari total ${fmtNum(all.length)} nasabah simpanan tanpa pinjaman (diurutkan dari tanggal buka rekening terbaru), kandidat pipeline kredit untuk RM SME.`
+    : `Menampilkan ${fmtNum(all.length)} nasabah simpanan tanpa pinjaman (diurutkan dari tanggal buka rekening terbaru), kandidat pipeline kredit untuk RM SME.`;
+  $('smeOppHint').textContent = hint;
 }
 
 /* Badan-usaha name heuristic (PT/CV/UD/etc. prefix) — used to add a "tap-in
@@ -1925,20 +1952,6 @@ function renderCharts(){
   $('coverageDistBody').innerHTML = Object.keys(covBuckets).map(k =>
     `<tr><td>${k}</td><td class="num">${covBuckets[k]}</td></tr>`
   ).join('');
-
-  // Simple <5% vs ≥5% coverage split — a coarser, more actionable cut than
-  // the 5-bucket table above: "who's clearly under-covered" vs "who isn't".
-  const lowCov = custs.filter(c => ((c.fundingCoverage ?? 0) * 100) < 5);
-  const healthyCov = custs.filter(c => ((c.fundingCoverage ?? 0) * 100) >= 5);
-  const lowCovOS = lowCov.reduce((s,c)=>s+c.totalBakiDebet,0);
-  const healthyCovOS = healthyCov.reduce((s,c)=>s+c.totalBakiDebet,0);
-  const covCards = [
-    {label:'Nasabah Deposit to Loan < 5%', value:lowCov.length, sub:`${custs.length>0?(lowCov.length/custs.length*100).toFixed(1):0}% dari nasabah · Baki Debet ${fmtRupiah(lowCovOS)}`, cls:'danger'},
-    {label:'Nasabah Deposit to Loan ≥ 5%', value:healthyCov.length, sub:`${custs.length>0?(healthyCov.length/custs.length*100).toFixed(1):0}% dari nasabah · Baki Debet ${fmtRupiah(healthyCovOS)}`, cls:'success'},
-  ];
-  $('coverageThresholdStats').innerHTML = covCards.map(cd => `
-    <div class="stat-card ${cd.cls}"><div class="stat-label">${cd.label}</div><div class="stat-value">${fmtNum(cd.value)}</div><div class="stat-sub">${cd.sub}</div></div>
-  `).join('');
 }
 
 /* ===================================================================
