@@ -653,6 +653,7 @@ table.data-table td.empty{text-align:center}
           </div>
 
           <p style="font-size:11.5px;color:var(--text-soft);margin:-4px 0 8px;font-style:italic">Konteks portfolio nasabah pinjaman (LW321) sesuai filter — dasar dari perhitungan Deposit to Loan di bawah.</p>
+          <p id="kpiDplCard" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px"></p>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
             <div>
               <div class="detail-section-title">Pinjaman</div>
@@ -663,9 +664,6 @@ table.data-table td.empty{text-align:center}
               <div id="priorityStatsSimpanan"></div>
             </div>
           </div>
-
-          <div class="detail-section-title">KPI Rasio DPK Debitur Kelolaan to Loan SME — Target 18%</div>
-          <div class="chart-card" style="margin-bottom:18px" id="kpiDplCard"></div>
 
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
             <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
@@ -811,6 +809,10 @@ const RM_PAIRING = [
 ];
 function findPairedRmFt(rmSmeValue){
   if(!rmSmeValue) return null;
+  // Prefer the data-driven inference computed in buildCustomers — it works
+  // for any RM automatically. The hardcoded SK-document list is only a
+  // fallback for when there isn't enough data yet to infer a pairing.
+  if(State.inferredRmPairing && State.inferredRmPairing.has(rmSmeValue)) return State.inferredRmPairing.get(rmSmeValue);
   const upper = rmSmeValue.toUpperCase();
   const pair = RM_PAIRING.find(p => upper.includes(p.rmSme.toUpperCase()));
   return pair ? pair.rmFt : null;
@@ -1343,6 +1345,35 @@ function buildCustomers(){
   State.customers = customers;
   State.customersVersion = (State.customersVersion||0) + 1;
   State.diag = diagCounts;
+
+  // Data-driven RM SME ↔ RM FT pairing — instead of relying only on a
+  // hardcoded list (which only covers RMs from one specific SK document and
+  // silently produces nothing for anyone else, e.g. Bima/Nuhisa/Sigit/Afun
+  // Meta/Rizky/Tri Okto not being in that list), infer each RM SME's most
+  // frequent RM FT partner directly from the portfolio itself: for every RM
+  // SME's loan customers, look at who manages THEIR funding accounts
+  // (rmFundingList) — whichever RM FT shows up most often across those
+  // customers is almost certainly their paired partner in practice, since
+  // that's exactly what a real SK pairing produces in the data. This works
+  // for any RM automatically, with no hardcoded list to maintain.
+  const pairCounts = new Map(); // rmSme -> Map(rmFt -> count)
+  customers.forEach(c => {
+    const rmSme = c.rmPengelola;
+    if(!rmSme || rmSme === '-') return;
+    (c.rmFundingList || []).forEach(rmFt => {
+      if(!rmFt || rmFt === '-') return;
+      if(!pairCounts.has(rmSme)) pairCounts.set(rmSme, new Map());
+      const m = pairCounts.get(rmSme);
+      m.set(rmFt, (m.get(rmFt)||0) + 1);
+    });
+  });
+  const inferredPairing = new Map();
+  pairCounts.forEach((ftCounts, rmSme) => {
+    let bestFt = null, bestCount = 0;
+    ftCounts.forEach((count, ft) => { if(count > bestCount){ bestCount = count; bestFt = ft; } });
+    if(bestFt) inferredPairing.set(rmSme, bestFt);
+  });
+  State.inferredRmPairing = inferredPairing;
 }
 
 /* ===================================================================
@@ -1582,20 +1613,8 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
 function renderKpiDplCard(custs){
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
   const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
-  const TARGET_PCT = 18;
   const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
-  const barPct = Math.min((actualPct / TARGET_PCT) * 100, 100);
-  const statusColor = actualPct >= TARGET_PCT ? 'var(--success)' : actualPct >= TARGET_PCT*0.7 ? 'var(--warning)' : 'var(--danger)';
-  $('kpiDplCard').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--text-muted)">Rasio DPK Debitur Kelolaan to Loan SME saat ini (Tabungan+Giro+Deposito ÷ Baki Debet)</div>
-      <div style="font-size:26px;font-weight:800;color:${statusColor}">${actualPct.toFixed(1)}%</div>
-    </div>
-    <div style="height:22px;background:var(--surface-alt);border-radius:11px;overflow:hidden;border:1px solid var(--border)">
-      <div style="height:100%;width:${barPct}%;background:${statusColor};border-radius:11px;transition:width .3s"></div>
-    </div>
-    <div style="margin-top:8px;font-size:11.5px;color:var(--text-soft)">Target: 18%</div>
-  `;
+  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan SME = ${actualPct.toFixed(1)}%`;
 }
 
 function renderStats(){
