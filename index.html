@@ -508,18 +508,18 @@ table.data-table td.empty{text-align:center}
       <button class="tab active" data-panel="overview">Ringkasan</button>
       <button class="tab" data-panel="customers">Customer View<span class="badge" id="badgeCust">0</span></button>
       <button class="tab" data-panel="priority">Prioritas Pengelolaan<span class="badge" id="badgePriority">0</span></button>
-      <button class="tab" data-panel="opportunity">Relationship Opportunity<span class="badge" id="badgeOpp">0</span></button>
+      <button class="tab" data-panel="opportunity">Relationship Opportunity</button>
     </div>
 
     <!-- TAB: OVERVIEW -->
     <div class="tab-panel active" id="panel-overview">
       <p style="font-size:11.5px;color:var(--text-soft);margin:0 0 8px;font-style:italic">Catatan: Pinjaman &amp; Merchant mengikuti filter Regional/Cabang/Unit Kerja/RM di atas. Simpanan dihitung dari keseluruhan data (termasuk nasabah simpanan yang belum punya pinjaman), tidak ikut filter cabang.</p>
       <div class="detail-section-title">Pinjaman (LW321, sesuai filter)</div>
-      <div class="stats-grid" id="statsGridPinjaman" style="margin-bottom:14px"></div>
+      <div id="statsGridPinjaman" style="margin-bottom:14px"></div>
       <div class="detail-section-title">Simpanan (keseluruhan data)</div>
-      <div class="stats-grid" id="statsGridSimpanan" style="margin-bottom:14px"></div>
+      <div id="statsGridSimpanan" style="margin-bottom:14px"></div>
       <div class="detail-section-title">Merchant (sesuai filter)</div>
-      <div class="stats-grid" id="statsGridMerchant" style="margin-bottom:18px"></div>
+      <div id="statsGridMerchant" style="margin-bottom:18px"></div>
 
       <div class="charts-grid">
         <div class="chart-card">
@@ -541,12 +541,6 @@ table.data-table td.empty{text-align:center}
         <div class="chart-card">
           <h3>Distribusi Deposit to Loan Nasabah</h3>
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
-          <div class="table-wrap" style="margin-top:12px">
-            <table class="data-table">
-              <thead><tr><th>Deposit to Loan</th><th class="num">Nasabah</th></tr></thead>
-              <tbody id="coverageDistBody"></tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>
@@ -612,9 +606,16 @@ table.data-table td.empty{text-align:center}
         <div class="panel-body">
           <p class="upload-hint" style="margin-bottom:10px">Kategori <strong>Pinjaman</strong> = peluang RM SME (nasabah sudah punya simpanan, belum punya pinjaman). Kategori lain = peluang RM FT (nasabah sudah punya pinjaman, belum lengkap funding/merchant). Klik kategori untuk lihat daftar nasabahnya.</p>
           <div class="opp-grid" id="oppGrid"></div>
-          <div class="search-wrap no-print" style="margin-bottom:12px;max-width:420px">
+          <div class="search-wrap no-print" style="margin-bottom:8px;max-width:420px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="input" id="oppSearch" placeholder="Cari nama nasabah atau CIF...">
+          </div>
+          <div id="oppPinjamanFilterWrap" style="display:none;margin-bottom:12px;max-width:220px">
+            <select class="select" id="oppPinjamanJenisFilter">
+              <option value="">Semua Jenis Rekening</option>
+              <option value="Tabungan">Tabungan</option>
+              <option value="Giro">Giro</option>
+            </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
         </div>
@@ -637,9 +638,12 @@ table.data-table td.empty{text-align:center}
 
           <p style="font-size:11.5px;color:var(--text-soft);margin:-4px 0 8px;font-style:italic">Konteks portfolio nasabah pinjaman (LW321) sesuai filter — dasar dari perhitungan Deposit to Loan di bawah.</p>
           <div class="detail-section-title">Pinjaman</div>
-          <div class="stats-grid" id="priorityStatsPinjaman" style="margin-bottom:14px"></div>
+          <div id="priorityStatsPinjaman" style="margin-bottom:14px"></div>
           <div class="detail-section-title">Simpanan (nasabah pinjaman ini saja)</div>
-          <div class="stats-grid" id="priorityStatsSimpanan" style="margin-bottom:18px"></div>
+          <div id="priorityStatsSimpanan" style="margin-bottom:18px"></div>
+
+          <div class="detail-section-title">KPI — Rasio DPK Debitur Kelolaan to Loan SME</div>
+          <div class="customer-hero" id="kpiDplCard" style="padding:14px 20px;margin-bottom:18px"></div>
 
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
             <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
@@ -1200,7 +1204,7 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman (RM SME)', sub:'Nasabah sudah punya simpanan (Tabungan/Giro), belum pernah punya fasilitas kredit di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship simpanan di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', sub:'Nasabah sudah punya simpanan (Tabungan/Giro), belum pernah punya fasilitas kredit di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship simpanan di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
   noTabungan: {tag:'TABUNGAN', label:'Cross-sell Tabungan', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
   noGiro:     {tag:'GIRO', label:'Cross-sell Giro', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
   noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
@@ -1347,24 +1351,48 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
     {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} transaksi`, cls:''},
     {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} transaksi`, cls:''},
   ];
-  const renderCards = list => list.map(c => `
-    <div class="stat-card ${c.cls}">
-      <div class="stat-label">${c.label}</div>
-      <div class="stat-value" style="font-size:16px">${typeof c.value==='number' ? fmtNum(c.value) : c.value}</div>
-      <div class="stat-sub">${c.sub}</div>
-    </div>
-  `).join('');
+  const renderTable = list => `
+    <div class="table-wrap"><table class="data-table">
+      <tbody>
+        ${list.map(c => `<tr><td>${c.label}</td><td class="num">${typeof c.value==='number' ? fmtNum(c.value) : c.value}</td><td style="color:var(--text-muted);font-size:12px">${c.sub}</td></tr>`).join('')}
+      </tbody>
+    </table></div>
+  `;
 
-  if(ids.pinjaman) $(ids.pinjaman).innerHTML = renderCards(pinjamanCards);
-  if(ids.simpanan) $(ids.simpanan).innerHTML = renderCards(simpananCards);
-  if(ids.merchant) $(ids.merchant).innerHTML = renderCards(merchantCards);
+  if(ids.pinjaman) $(ids.pinjaman).innerHTML = renderTable(pinjamanCards);
+  if(ids.simpanan) $(ids.simpanan).innerHTML = renderTable(simpananCards);
+  if(ids.merchant) $(ids.merchant).innerHTML = renderTable(merchantCards);
+}
+
+/* KPI target per "Ketentuan Ekspansi Kredit Segmen SME Tahun 2026" — Rasio
+   DPK Debitur Kelolaan to Loan SME target = 18% of Baki Debet. Achievement %
+   is realised Total Funding against that Rupiah target, not just the raw
+   ratio, so it reads directly as "how close is this branch/RM to the KPI". */
+function renderKpiDplCard(custs){
+  const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
+  const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0);
+  const TARGET_RATIO = 0.18;
+  const targetDPK = totalBaki * TARGET_RATIO;
+  const actualRatio = totalBaki > 0 ? totalFunding / totalBaki : 0;
+  const achievementPct = targetDPK > 0 ? (totalFunding / targetDPK * 100) : 0;
+  const statusColor = achievementPct >= 100 ? 'var(--success)' : achievementPct >= 70 ? 'var(--warning)' : 'var(--danger)';
+  $('kpiDplCard').innerHTML = `
+    <div class="customer-hero-inner">
+      <span class="label-tag">KPI Rasio DPK Debitur Kelolaan to Loan SME — Target 18%</span>
+      <div class="cname" style="font-size:20px;color:${statusColor}">${achievementPct.toFixed(1)}% dari target</div>
+      <div class="customer-hero-grid" style="margin-top:10px">
+        <div><div class="f-label">Rasio Aktual (Total Funding / Baki Debet)</div><div class="f-value">${(actualRatio*100).toFixed(1)}%</div></div>
+        <div><div class="f-label">Target DPK (18% × Baki Debet)</div><div class="f-value">${fmtRupiah(targetDPK)}</div></div>
+        <div><div class="f-label">Realisasi Total Funding</div><div class="f-value">${fmtRupiah(totalFunding)}</div></div>
+        <div><div class="f-label">Gap ke Target</div><div class="f-value">${fmtRupiah(Math.max(targetDPK-totalFunding,0))}</div></div>
+      </div>
+    </div>
+  `;
 }
 
 function renderStats(){
   const custs = getScopedCustomers();
-  const custWithOpp = custs.filter(c=>c.oppCount>0).length;
   $('badgeCust').textContent = custs.length;
-  $('badgeOpp').textContent = custWithOpp;
   renderPinjamanSimpananMerchantStats(custs, {pinjaman:'statsGridPinjaman', simpanan:'statsGridSimpanan', merchant:'statsGridMerchant'}, true);
 }
 
@@ -1682,37 +1710,46 @@ function buildOppInsightNote(c, key){
    buildCustomers, so capping just keeps the most relevant leads without
    needing to re-sort or scan the whole list again. */
 const OPP_DISPLAY_CAP = 200;
-function selectOpp(k){
+function selectOpp(k, resetPinjamanPage=true){
   State.activeOpp = k;
+  if(resetPinjamanPage) State.pinjamanOppPageSize = OPP_DISPLAY_CAP;
   document.querySelectorAll('.opp-card').forEach(el => el.classList.toggle('active', el.dataset.opp === k));
   const def = OPP_DEFS[k];
   const q = ($('oppSearch').value || '').toLowerCase().trim();
   let list = State.oppCategories[k];
 
+  // The Tabungan/Giro filter only makes sense for the Pinjaman category (the
+  // other categories aren't split by product type this way) — only shown
+  // when that category is active.
+  $('oppPinjamanFilterWrap').style.display = k === 'pinjaman' ? 'block' : 'none';
+
   if(k === 'pinjaman'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
-    const visible = list.slice(0, OPP_DISPLAY_CAP);
+    const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
+    if(jenisFilter) list = list.filter(p => p.jenis === jenisFilter);
+    const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
+    const visible = list.slice(0, pageSize);
     const entries = visible.map(p => `
       <div class="opp-entry">
         <div class="opp-entry-head">
           <span>${escapeHtml(p.nama || '(tanpa nama)')}</span>
-          <span class="badge-pill prod-yes">${escapeHtml(p.jenis)}</span>
+          <span class="badge-pill prod-yes" style="font-weight:800">${escapeHtml(p.jenis)}</span>
         </div>
         <div class="detail-grid">
           <div class="detail-field"><span class="lbl">CIF</span><span class="val">${escapeHtml(p.cif)}</span></div>
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.balance)}</span></div>
-          <div class="detail-field"><span class="lbl">Tanggal Buka</span><span class="val">${escapeHtml(p.openDt || '-')}</span></div>
         </div>
-        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship ${escapeHtml(p.jenis)} di BRI tapi belum pernah tercatat punya fasilitas kredit — kandidat pipeline kredit untuk RM SME.</div>
+        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${escapeHtml(p.jenis)}</strong> di BRI tapi belum pernah tercatat punya fasilitas kredit — kandidat pipeline kredit untuk RM SME.</div>
       </div>
     `).join('');
-    const capNote = list.length > OPP_DISPLAY_CAP
-      ? `<div class="upload-hint" style="margin-bottom:10px">Menampilkan ${OPP_DISPLAY_CAP} rekening terbaru dari total ${fmtNum(list.length)} (diurutkan dari tanggal buka rekening terbaru).</div>` : '';
+    const loadMore = list.length > pageSize
+      ? `<div style="text-align:center;padding:14px"><button class="btn btn-outline btn-sm" onclick="growPinjamanOppPage()">Muat ${OPP_DISPLAY_CAP} Lagi</button></div>` : '';
     $('oppDetail').innerHTML = `
       <div class="rec-note"><strong>${def.label}</strong> — ${def.rec}</div>
-      ${capNote}
+      <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} rekening (diurutkan dari tanggal buka rekening terbaru).</div>
       <div class="opp-entry-list">${entries || '<div class="opp-detail-empty">Tidak ada nasabah yang cocok.</div>'}</div>
+      ${loadMore}
     `;
     return;
   }
@@ -1740,7 +1777,13 @@ function selectOpp(k){
   `;
 }
 window.selectOpp = selectOpp;
-$('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp); });
+function growPinjamanOppPage(){
+  State.pinjamanOppPageSize = (State.pinjamanOppPageSize||OPP_DISPLAY_CAP) + OPP_DISPLAY_CAP;
+  selectOpp('pinjaman', false);
+}
+window.growPinjamanOppPage = growPinjamanOppPage;
+$('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp, true); });
+$('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
 
 /* ===================================================================
    PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
@@ -1871,6 +1914,7 @@ function renderPriorityTab(){
   renderPriorityTable();
   $('badgePriority').textContent = State.priority.quadCounts.needsVisit;
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
+  renderKpiDplCard(getScopedCustomers());
 
   const p = State.priority;
   $('priorityTableHint').textContent =
@@ -1969,14 +2013,33 @@ function renderCharts(){
     else if(cov <= 50) covBuckets['>25–50%']++;
     else covBuckets['>50%']++;
   });
+  // Draws the count directly above each bar instead of relying on Y-axis
+  // tick numbers — reads faster at a glance and lets the axis itself stay
+  // clean/unlabeled.
+  const barValueLabelPlugin = {
+    id: 'barValueLabelPlugin',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      chart.data.datasets.forEach((dataset, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, i) => {
+          const value = dataset.data[i];
+          ctx.save();
+          ctx.fillStyle = '#0b2540';
+          ctx.font = '700 11px Segoe UI, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(fmtNum(value), bar.x, bar.y - 6);
+          ctx.restore();
+        });
+      });
+    }
+  };
   State.charts.coverageDist = new Chart($('chartCoverageDist'), {
     type:'bar',
     data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#d64545','#e0824a','#e07b1f','#d69a12','#2e78d6','#0a9d6e'], borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
+    plugins:[barValueLabelPlugin]
   });
-  $('coverageDistBody').innerHTML = Object.keys(covBuckets).map(k =>
-    `<tr><td>${k}</td><td class="num">${covBuckets[k]}</td></tr>`
-  ).join('');
 }
 
 /* ===================================================================
@@ -1992,7 +2055,7 @@ function exportToExcel(){
       c.nama, c.cif, c.uker, c.worstKol, c.loans.length, c.totalPlafon, c.totalBakiDebet, c.totalTunggakan,
       c.tabungan.length, c.totalTabungan, c.giro.length, c.totalGiro, c.deposito.length, c.totalDeposito,
       c.totalFunding, c.edc.length+c.qris.length, c.totalMerchantVolume,
-      c.fundingCoverage!=null ? +(c.fundingCoverage*100).toFixed(2) : '', c.oppCount, c.opportunities.map(k=>OPP_DEFS[k].label).join('; ')
+      c.fundingCoverage!=null ? +(c.fundingCoverage*100).toFixed(2) : '', c.oppCount, c.opportunities.filter(k=>k!=='pinjaman').map(k=>OPP_DEFS[k].label).join('; ')
     ]);
     const summaryHeader = ['Nama Nasabah','CIF','Unit Kerja','Kol Terburuk','Jml Fasilitas','Total Plafon','Total Baki Debet','Total Tunggakan',
       'Jml Tabungan','Saldo Tabungan','Jml Giro','Saldo Giro','Jml Deposito','Nominal Deposito','Total Funding','Jml Merchant','Volume Merchant',
@@ -2001,11 +2064,27 @@ function exportToExcel(){
     wsSummary['!cols'] = summaryHeader.map(h=>({wch:Math.max(14,h.length+2)}));
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Customer 360 Summary');
 
+    // Excel sheet names can't contain : \ / ? * [ ] and must be ≤31 chars —
+    // "Ekosistem EDC/QRIS" has a "/" in it, which silently produces a file
+    // Excel has to "repair" on open (this was the actual reason the export
+    // wasn't reliably usable, not a missing-feature issue).
+    const sanitizeSheetName = name => name.replace(/[:\\\/?*\[\]]/g, '-').slice(0, 31);
+
     Object.keys(OPP_DEFS).forEach(k => {
       const list = State.oppCategories[k] || [];
-      const rows = list.map(c => [c.nama, c.cif, c.uker, c.worstKol, c.totalBakiDebet, c.totalFunding, cleanPn(c.loans[0]?.pnPengelola)]);
-      const ws = XLSX.utils.aoa_to_sheet([['Nama','CIF','Unit Kerja','Kol','Baki Debet','Total Funding','RM Pengelola Kredit'], ...rows]);
-      XLSX.utils.book_append_sheet(wb, ws, OPP_DEFS[k].label.slice(0,31));
+      // "Pinjaman" (RM SME) draws from the funding-only-prospect list, a
+      // different shape (cif/nama/jenis/balance/openDt/ukerCode) than every
+      // other category (full Customer objects) — special-cased so it doesn't
+      // try to read .totalBakiDebet/.loans etc. that don't exist on it and
+      // throw partway through the export.
+      const rows = k === 'pinjaman'
+        ? list.map(p => [p.nama, p.cif, p.jenis, p.balance, p.openDt, p.ukerCode])
+        : list.map(c => [c.nama, c.cif, c.uker, c.worstKol, c.totalBakiDebet, c.totalFunding, cleanPn(c.loans[0]?.pnPengelola)]);
+      const header = k === 'pinjaman'
+        ? ['Nama','CIF','Jenis Rekening','Saldo','Tanggal Buka','Kode Unit Kerja']
+        : ['Nama','CIF','Unit Kerja','Kol','Baki Debet','Total Funding','RM Pengelola Kredit'];
+      const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(OPP_DEFS[k].label));
     });
 
     const filename = `Customer360_${new Date().toISOString().slice(0,10)}.xlsx`;
@@ -2148,7 +2227,6 @@ function loadDummyDashboard(){
   State.customers = new Map(generateDummyCustomers().map(c => [c.cif, c]));
   State.customersVersion = (State.customersVersion||0) + 1;
   populateGlobalFilterOptions();
-  applyDefaultRegionSelection('Semarang', 'Brigjen Sudiarto', 'Brigjen Sudiarto');
   applyGlobalFilter();
   $('uploadSection').style.display = 'none';
   $('dashboard').classList.add('show');
@@ -2172,7 +2250,6 @@ async function processAll(){
     await new Promise(r=>setTimeout(r,80));
 
     populateGlobalFilterOptions();
-    applyDefaultRegionSelection('Semarang', 'Brigjen Sudiarto', 'Brigjen Sudiarto');
     applyGlobalFilter();
 
     setP(100, 'Selesai!');
