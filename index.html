@@ -352,6 +352,8 @@ table.data-table .ctr{text-align:center}
 .opp-entry-list{display:flex;flex-direction:column;gap:10px}
 .opp-entry{border:1px solid var(--border);border-left:4px solid var(--brand);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface-alt)}
 .opp-entry-head{font-weight:700;font-size:13.5px;color:var(--text);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cust-link{color:var(--text);text-decoration:none;cursor:pointer;border-bottom:1px dashed transparent}
+.cust-link:hover{color:var(--brand);border-bottom-color:var(--brand)}
 .opp-detail-empty{padding:24px;text-align:center;color:var(--text-muted);font-style:italic}
 .rec-note{
   font-size:12px;color:var(--brand-dark);background:var(--accent-soft);border-left:3px solid var(--brand);
@@ -702,7 +704,7 @@ table.data-table td.empty{text-align:center}
           <div class="table-wrap">
             <table class="data-table" id="priorityTable">
               <thead><tr>
-                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">Deposit to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th><th class="ctr">Detail</th>
+                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">Deposit to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th>
               </tr></thead>
               <tbody id="priorityBody"></tbody>
             </table>
@@ -786,14 +788,49 @@ function getScopedCustomers(){
    show them anyway (which was the actual bug: filtering to one RM still
    showed the full unfiltered prospect count). RM Pengelola FT does have a
    real signal to filter on (captured per product above). */
+/* RM SME ↔ RM Dana & Transaksi (RM FT) pairing — per the formal SK Pairing
+   at BO Semarang Brigjen Sudiarto. Each RM SME (who manages lending, i.e.
+   shows up as "RM Pengelola Kredit") has exactly one paired RM FT (who
+   manages funding/transaction relationships). This is the real fix for
+   "filter by one RM SME = 0 opportunities" — a funding-only prospect has no
+   loan and therefore no RM Pengelola Kredit at all, but their RM FT is very
+   likely the paired partner of whichever RM SME is being filtered on, since
+   the two are meant to co-manage the same customer base. Names are matched
+   as substrings against the combined "PN - Nama" strings the app already
+   uses everywhere, so this doesn't depend on exact formatting.
+   NOTE: this list is specific to one branch (BO Semarang Brigjen Sudiarto) —
+   for other branches this pairing table would need its own data. */
+const RM_PAIRING = [
+  {rmFt:'Etha Rizki Aryani', rmSme:'Anang Hamdhani'},
+  {rmFt:'Krishna Rahardita', rmSme:'Nugroho Sigit Pamungkas'},
+  {rmFt:'Valentino Giovani', rmSme:'Rizky Wahanda Pratam'},
+  {rmFt:'Arif Budi Wibowo', rmSme:'Agung Bachtiar Al Haba'},
+  {rmFt:'Sefrin Insfiadri', rmSme:'Muhammad Nuhisa'},
+  {rmFt:'Ika Bekti Aryani', rmSme:'Bima Antariksa'},
+  {rmFt:'Mutiara Shafa', rmSme:'FL Susetyo Aryadi'},
+];
+function findPairedRmFt(rmSmeValue){
+  if(!rmSmeValue) return null;
+  const upper = rmSmeValue.toUpperCase();
+  const pair = RM_PAIRING.find(p => upper.includes(p.rmSme.toUpperCase()));
+  return pair ? pair.rmFt : null;
+}
+
 function getScopedFundingOnlyProspects(){
   let list = State.fundingOnlyProspects || [];
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
-  if(rm) return [];
   if(kanwil) list = list.filter(p => p.kanwil === kanwil);
   if(kanca) list = list.filter(p => p.kanca === kanca);
   if(uker) list = list.filter(p => p.uker === uker);
-  if(rmFt) list = list.filter(p => p.rmFundingList && p.rmFundingList.includes(rmFt));
+  if(rm){
+    // A prospect has no loan, so no direct RM Pengelola Kredit to match —
+    // but their RM FT might be this RM SME's paired partner (shared
+    // customer pipeline per the SK pairing), so show those instead of
+    // silently returning nothing every single time this filter is used.
+    const pairedFt = findPairedRmFt(rm);
+    list = pairedFt ? list.filter(p => p.rmFundingList && p.rmFundingList.some(name => name.toUpperCase().includes(pairedFt.toUpperCase()))) : [];
+  }
+  if(rmFt) list = list.filter(p => p.rmFundingList && p.rmFundingList.some(name => name.toUpperCase().includes(rmFt.toUpperCase())));
   return list;
 }
 
@@ -1312,13 +1349,13 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
-  noTabungan: {tag:'TABUNGAN', label:'Cross-sell Tabungan', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
-  noGiro:     {tag:'GIRO', label:'Cross-sell Giro', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
-  noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
-  noMerchant: {tag:'EDC/QRIS', label:'Ekosistem EDC/QRIS', sub:'Nasabah belum memiliki EDC dan/atau QRIS.', rec:'Peluang akuisisi ekosistem merchant (EDC/QRIS) khususnya untuk nasabah dengan usaha produktif, untuk memperluas fee based income & data transaksi.'},
-  depositoJT: {tag:'DEPOSITO JT', label:'Retensi Deposito Jatuh Tempo', sub:'Deposito nasabah akan jatuh tempo dalam 90 hari ke depan.', rec:'Retention/reinvestment opportunity — hubungi nasabah sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau pengalihan ke produk funding lain, supaya dana tidak keluar dari BRI.'},
-  kolWatch:   {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:   {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  noTabungan: {tag:'TABUNGAN', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
+  noGiro:     {tag:'GIRO', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
+  noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
+  noMerchant: {tag:'EDC/QRIS', label:'Ekosistem EDC/QRIS', owner:'FT', sub:'Nasabah belum memiliki EDC dan/atau QRIS.', rec:'Peluang akuisisi ekosistem merchant (EDC/QRIS) khususnya untuk nasabah dengan usaha produktif, untuk memperluas fee based income & data transaksi.'},
+  depositoJT: {tag:'DEPOSITO JT', label:'Retensi Deposito Jatuh Tempo', owner:'FT', sub:'Deposito nasabah akan jatuh tempo dalam 90 hari ke depan.', rec:'Retention/reinvestment opportunity — hubungi nasabah sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau pengalihan ke produk funding lain, supaya dana tidak keluar dari BRI.'},
+  kolWatch:   {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
 
 /* Prioritas/Private value-tier badge for high-value opportunities (used on
@@ -1545,23 +1582,19 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
 function renderKpiDplCard(custs){
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
   const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
-  const TARGET_RATIO = 0.18;
-  const actualRatio = totalBaki > 0 ? totalFunding / totalBaki : 0;
-  const achievementPct = totalBaki > 0 ? (actualRatio / TARGET_RATIO * 100) : 0;
-  const barPct = Math.min(achievementPct, 100);
-  const statusColor = achievementPct >= 100 ? 'var(--success)' : achievementPct >= 70 ? 'var(--warning)' : 'var(--danger)';
+  const TARGET_PCT = 18;
+  const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
+  const barPct = Math.min((actualPct / TARGET_PCT) * 100, 100);
+  const statusColor = actualPct >= TARGET_PCT ? 'var(--success)' : actualPct >= TARGET_PCT*0.7 ? 'var(--warning)' : 'var(--danger)';
   $('kpiDplCard').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--text-muted)">Rasio Aktual (Tabungan+Giro+Deposito ÷ Baki Debet): <strong style="color:var(--text)">${(actualRatio*100).toFixed(1)}%</strong> dari target <strong>18%</strong></div>
-      <div style="font-size:22px;font-weight:800;color:${statusColor}">${achievementPct.toFixed(1)}%</div>
+      <div style="font-size:13px;color:var(--text-muted)">Rasio DPK Debitur Kelolaan to Loan SME saat ini (Tabungan+Giro+Deposito ÷ Baki Debet)</div>
+      <div style="font-size:26px;font-weight:800;color:${statusColor}">${actualPct.toFixed(1)}%</div>
     </div>
     <div style="height:22px;background:var(--surface-alt);border-radius:11px;overflow:hidden;border:1px solid var(--border)">
       <div style="height:100%;width:${barPct}%;background:${statusColor};border-radius:11px;transition:width .3s"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--text-soft);flex-wrap:wrap;gap:6px">
-      <span>Realisasi Simpanan: ${fmtRupiah(totalFunding)}</span>
-      <span>Target (18% × Baki Debet): ${fmtRupiah(totalBaki*TARGET_RATIO)}</span>
-    </div>
+    <div style="margin-top:8px;font-size:11.5px;color:var(--text-soft)">Target: 18%</div>
   `;
 }
 
@@ -1840,6 +1873,7 @@ function renderOppGrid(){
         <div class="opp-count">${list.length}</div>
         <div class="opp-label">${def.label}</div>
         <div class="opp-sub">${def.sub}</div>
+        <div style="margin-top:6px;font-size:10.5px;font-weight:700;color:var(--text-soft)">Owner: ${def.owner}</div>
       </div>
     `;
   }).join('');
@@ -1872,6 +1906,18 @@ function buildOppInsightNote(c, key){
   if(key === 'kolWatch'){
     // Kol ≥3 already handled above, so this only fires for Kol 2 entries here.
     return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
+  }
+  if(key === 'depositoJT'){
+    // Semantically different from every other category here — the customer
+    // ALREADY has the product (Deposito), it's a retention/reinvestment
+    // opportunity because it's about to mature, not a "belum ada" gap. Using
+    // the generic missingLabel template for this produced a literal
+    // "undefined" in the message (that lookup has no depositoJT entry).
+    const today = new Date();
+    const in90 = new Date(Date.now()+90*86400000);
+    const maturing = c.deposito.filter(t => { const d = parseFlexibleDate(t.matDt); return d && d >= today && d <= in90; });
+    const totalMaturing = maturing.reduce((s,t)=>s+(t._principal||0),0);
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} punya ${maturing.length} deposito senilai <strong>${fmtRupiah(totalMaturing)}</strong> yang akan jatuh tempo dalam 90 hari ke depan — hubungi sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau produk funding lain, supaya dana tidak keluar dari BRI.</div>`;
   }
 
   const owned = [];
@@ -1935,7 +1981,7 @@ function selectOpp(k, resetPinjamanPage=true){
       return `
       <div class="opp-entry">
         <div class="opp-entry-head">
-          <span>${escapeHtml(p.nama || '(tanpa nama)')}${tier ? ` <span class="badge-pill" style="background:${tier.color};color:#fff;font-weight:800">${tier.label}</span>` : ''}</span>
+          <span>${p.everHadLoan ? `<a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">${escapeHtml(p.nama || '(tanpa nama)')}</a>` : escapeHtml(p.nama || '(tanpa nama)')}${tier ? ` <span class="badge-pill" style="background:${tier.color};color:#fff;font-weight:800">${tier.label}</span>` : ''}</span>
           <span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span>
         </div>
         <div class="detail-grid">
@@ -1944,7 +1990,6 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
         </div>
         <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${p.produk.map(x=>escapeHtml(x)).join(', ')}</strong> di BRI, ${p.everHadLoan ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)' : 'tapi belum pernah tercatat punya fasilitas kredit'} — kandidat pipeline kredit untuk RM SME.</div>
-        ${p.everHadLoan ? `<div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">Lihat Detail</button></div>` : ''}
       </div>
     `;
     }).join('');
@@ -1963,7 +2008,7 @@ function selectOpp(k, resetPinjamanPage=true){
   const entries = list.slice().sort((a,b)=>b.totalBakiDebet-a.totalBakiDebet).map(c => `
     <div class="opp-entry">
       <div class="opp-entry-head">
-        <span>${escapeHtml(c.nama)}</span>
+        <span><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')">${escapeHtml(c.nama)}</a></span>
         <span class="badge-pill k-${c.worstKol}">Kol ${c.worstKol}</span>
       </div>
       <div class="detail-grid">
@@ -1974,7 +2019,6 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
       </div>
       ${buildOppInsightNote(c, k)}
-      <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')">Lihat Detail</button></div>
     </div>
   `).join('');
   $('oppDetail').innerHTML = `
@@ -2101,15 +2145,14 @@ function renderPriorityTable(){
   $('priorityCounter').textContent = `Menampilkan ${rows.length} dari ${State.priority.list.length} nasabah${activeQuadLabel}${searchLabel}`;
   $('priorityBody').innerHTML = rows.map(r => `
     <tr>
-      <td><strong>${escapeHtml(r.c.nama)}</strong></td>
+      <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(r.c.cif)}')"><strong>${escapeHtml(r.c.nama)}</strong></a></td>
       <td class="num">${fmtRupiah(r.c.totalBakiDebet)}</td>
       <td class="num">${(r.cov*100).toFixed(1)}%</td>
       <td><span class="badge-pill ${QUAD_DEFS[r.quad].badgeCls}">${QUAD_DEFS[r.quad].label}</span></td>
       <td>${escapeHtml(cleanPn(r.c.loans[0]?.pnPengelola))}</td>
       <td>${escapeHtml(r.c.rmFundingList && r.c.rmFundingList.length ? r.c.rmFundingList.join(', ') : '-')}</td>
-      <td class="ctr"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(r.c.cif)}')">Lihat Detail</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="empty">Tidak ada nasabah yang cocok.</td></tr>';
+  `).join('') || '<tr><td colspan="6" class="empty">Tidak ada nasabah yang cocok.</td></tr>';
 }
 
 
