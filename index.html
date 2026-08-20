@@ -662,6 +662,9 @@ table.data-table td.empty{text-align:center}
             </div>
           </div>
 
+          <div class="detail-section-title">KPI Rasio DPK Debitur Kelolaan to Loan SME — Target 18%</div>
+          <div class="chart-card" style="margin-bottom:18px" id="kpiDplCard"></div>
+
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
             <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
             <div class="panel-body">
@@ -699,7 +702,7 @@ table.data-table td.empty{text-align:center}
           <div class="table-wrap">
             <table class="data-table" id="priorityTable">
               <thead><tr>
-                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">Deposit to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th>
+                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">Deposit to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th><th class="ctr">Detail</th>
               </tr></thead>
               <tbody id="priorityBody"></tbody>
             </table>
@@ -772,6 +775,25 @@ function getScopedCustomers(){
   if(rmFt) list = list.filter(c => c.rmFundingList.includes(rmFt));
   State._scopedCache = list;
   State._scopedCacheKey = key;
+  return list;
+}
+
+/* Same idea as getScopedCustomers, but for the funding-only prospect list
+   (see buildCustomers). Kanwil/Kanca/Uker now resolve via the uker-code
+   lookup captured at build time. RM Pengelola Kredit is a special case: a
+   prospect has no loan at all, so there is no RM Pengelola Kredit to match —
+   filtering by that RM should exclude every prospect rather than silently
+   show them anyway (which was the actual bug: filtering to one RM still
+   showed the full unfiltered prospect count). RM Pengelola FT does have a
+   real signal to filter on (captured per product above). */
+function getScopedFundingOnlyProspects(){
+  let list = State.fundingOnlyProspects || [];
+  const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
+  if(rm) return [];
+  if(kanwil) list = list.filter(p => p.kanwil === kanwil);
+  if(kanca) list = list.filter(p => p.kanca === kanca);
+  if(uker) list = list.filter(p => p.uker === uker);
+  if(rmFt) list = list.filter(p => p.rmFundingList && p.rmFundingList.includes(rmFt));
   return list;
 }
 
@@ -1103,17 +1125,40 @@ function buildCustomers(){
   // name-only match only ever works against customers already in LW321 — a
   // genuinely new deposito-only prospect can never be identified from that
   // file alone, which is a real data limitation, not a bug.
+  //
+  // Kanwil/Kanca/Uker for prospects: DI319/DI321 only carry a raw uker CODE,
+  // not the branch name text the global filter uses — so build a code→name
+  // lookup from LW321's own rows (every LW321 row already has both the code
+  // and the name together) and apply it to prospects. Without this, the
+  // global Regional/Cabang/Unit Kerja filter simply couldn't scope prospects
+  // at all, which is exactly the "filter 1 RM still shows the full 93,301"
+  // bug — the branch filters were silently being ignored for this list.
+  const ukerCodeMap = new Map();
+  loanRows.forEach(row => {
+    const code = cleanStr(row.kodeUker);
+    if(code && !ukerCodeMap.has(code)){
+      ukerCodeMap.set(code, {kanwil:cleanStr(row.kanwil), kanca:cleanStr(row.kanca), uker:cleanStr(row.uker)||cleanStr(row.kanca)});
+    }
+  });
   const prospectMap = new Map();
   function getProspect(cif, nama, ukerCode){
-    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', tabungan:0, tabunganSum:0, giro:0, giroSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
+    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', kanwil:'', kanca:'', uker:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
     const p = prospectMap.get(cif);
     if(!p.nama && nama) p.nama = nama;
-    if(!p.ukerCode && ukerCode) p.ukerCode = ukerCode;
+    if(!p.ukerCode && ukerCode){
+      p.ukerCode = ukerCode;
+      const branch = ukerCodeMap.get(ukerCode);
+      if(branch){ p.kanwil = branch.kanwil; p.kanca = branch.kanca; p.uker = branch.uker; }
+    }
     return p;
   }
   function bumpOpenDt(p, dt){
     dt = cleanStr(dt);
     if(dt && dt > p.latestOpenDt) p.latestOpenDt = dt;
+  }
+  function addProspectRmFt(p, pn){
+    pn = cleanPn(pn);
+    if(pn && pn !== '-' && !p.rmFundingList.includes(pn)) p.rmFundingList.push(pn);
   }
 
   (State.raw['DI319']||[]).forEach(row => {
@@ -1127,6 +1172,7 @@ function buildCustomers(){
       const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.ukerCode));
       p.tabungan++; p.tabunganSum += parseNum(row.balance);
       bumpOpenDt(p, row.openDt);
+      addProspectRmFt(p, row.pnPengelola);
     }
   });
 
@@ -1142,6 +1188,7 @@ function buildCustomers(){
       const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.kodeUker));
       p.giro++; p.giroSum += parseNum(row.balance);
       bumpOpenDt(p, row.openDate);
+      addProspectRmFt(p, row.pnPengelola);
     }
   });
 
@@ -1180,6 +1227,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.namaMerchant), '');
       p.edc++; p.edcSum += parseNum(row.akumulasiSalesVolume || row.salesVolume);
+      addProspectRmFt(p, combinePn(row.pnUser, row.namaUser));
     }
   });
 
@@ -1195,6 +1243,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.namaMerchant), '');
       p.qris++; p.qrisSum += parseNum(row.akumulasiSvTotal);
+      addProspectRmFt(p, combinePn(row.pn, row.pnNama));
     }
   });
 
@@ -1232,19 +1281,24 @@ function buildCustomers(){
     if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
     if(c.edc.length===0 || c.qris.length===0) opp.push('noMerchant');
     if(c.worstKol >= 2) opp.push('kolWatch');
+    // Retention opportunity: any deposito maturing within the next 90 days —
+    // a window RMs can realistically act on (offer roll-over / reinvestment)
+    // before the money potentially leaves the bank at maturity.
+    if(c.deposito.some(t => { const d = parseFlexibleDate(t.matDt); return d && d >= new Date() && d <= new Date(Date.now()+90*86400000); })) opp.push('depositoJT');
     // "Currently has no active credit facility" — not "never had one". A
     // customer whose loan is fully paid off (Baki Debet = 0) but who still
     // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
     // candidate as someone who was never in LW321 at all (see the separate
     // fundingOnlyProspects capture above, merged with this in
-    // computeOppCategories/buildPinjamanOppList). BUT Baki Debet = 0 can also
-    // happen on a facility that's still technically active (e.g. right after
-    // the last installment clears, before the record is formally closed) —
-    // NEXT_PMT_DATE still being populated is the best available signal that
-    // a facility isn't actually finished yet, so only treat Baki Debet = 0 as
-    // a real opportunity when none of the customer's loans still have one.
-    const hasNoScheduledPayment = !c.loans.some(l => cleanStr(l.nextPmtDate));
-    if(c.totalBakiDebet === 0 && hasNoScheduledPayment && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)) opp.push('pinjaman');
+    // computeOppCategories/buildPinjamanOppList). An earlier version also
+    // required NEXT_PMT_DATE to be empty (trying to exclude a facility that's
+    // "active but momentarily zero balance") — in practice that field stays
+    // populated on most closed facilities in real exports too, so the check
+    // ended up suppressing nearly every result from this path, not just the
+    // edge case it was meant to catch. Back to Baki Debet = 0 alone; the
+    // rec-note below flags it as worth a quick verify rather than pretending
+    // certainty we don't have the data to support.
+    if(c.totalBakiDebet === 0 && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)) opp.push('pinjaman');
     c.opportunities = opp;
     c.oppCount = opp.length;
   });
@@ -1263,8 +1317,32 @@ const OPP_DEFS = {
   noGiro:     {tag:'GIRO', label:'Cross-sell Giro', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
   noDeposito: {tag:'DEPOSITO', label:'Edukasi Deposito', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
   noMerchant: {tag:'EDC/QRIS', label:'Ekosistem EDC/QRIS', sub:'Nasabah belum memiliki EDC dan/atau QRIS.', rec:'Peluang akuisisi ekosistem merchant (EDC/QRIS) khususnya untuk nasabah dengan usaha produktif, untuk memperluas fee based income & data transaksi.'},
+  depositoJT: {tag:'DEPOSITO JT', label:'Retensi Deposito Jatuh Tempo', sub:'Deposito nasabah akan jatuh tempo dalam 90 hari ke depan.', rec:'Retention/reinvestment opportunity — hubungi nasabah sebelum jatuh tempo untuk menawarkan perpanjangan (roll-over) atau pengalihan ke produk funding lain, supaya dana tidak keluar dari BRI.'},
   kolWatch:   {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
+
+/* Prioritas/Private value-tier badge for high-value opportunities (used on
+   Peluang Pinjaman entries) — thresholds follow BRI's own wealth-segment
+   convention (Prioritas ≥ Rp 1 miliar, Private ≥ Rp 15 miliar). */
+function getValueTier(amount){
+  if(amount >= 15000000000) return {label:'PRIVATE', color:'#7e57c2'};
+  if(amount >= 1000000000) return {label:'PRIORITAS', color:'#d69a12'};
+  return null;
+}
+
+/* Flexible date parser for the various DD/MM/YYYY, YYYY-MM-DD, etc. formats
+   that show up across LW321/CI324 exports — returns null on anything it
+   can't confidently parse rather than guessing wrong. */
+function parseFlexibleDate(str){
+  str = cleanStr(str);
+  if(!str) return null;
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 function computeOppCategories(){
   const cats = {};
@@ -1290,7 +1368,7 @@ function computeOppCategories(){
    product-open-date is available, or sorts after dated entries if none is). */
 function buildPinjamanOppList(){
   const entries = [];
-  (State.fundingOnlyProspects || []).forEach(p => {
+  getScopedFundingOnlyProspects().forEach(p => {
     const produk = [];
     if(p.tabungan) produk.push('Tabungan');
     if(p.giro) produk.push('Giro');
@@ -1417,7 +1495,7 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   let totalNasabahSimpanan = custSimpananCount;
   let totalNasabahMerchantCombined = custMerchantCount;
   if(combineProspects){
-    const prospects = State.fundingOnlyProspects || [];
+    const prospects = getScopedFundingOnlyProspects();
     prospects.forEach(p => {
       if(p.tabungan){ agg.tabungan.sum += p.tabunganSum; agg.tabungan.count += p.tabungan; }
       if(p.giro){ agg.giro.sum += p.giroSum; agg.giro.count += p.giro; }
@@ -1457,6 +1535,34 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   if(ids.pinjaman) $(ids.pinjaman).innerHTML = renderTable(pinjamanCards);
   if(ids.simpanan) $(ids.simpanan).innerHTML = renderTable(simpananCards);
   if(ids.merchant) $(ids.merchant).innerHTML = renderTable(merchantCards);
+}
+
+/* KPI target per "Ketentuan Ekspansi Kredit Segmen SME Tahun 2026" — Rasio
+   DPK Debitur Kelolaan to Loan SME target = 18% of Baki Debet. Rendered as a
+   progress bar (capped visually at 100% even on overachievement, with the
+   real % still shown as text) so it reads at a glance rather than needing to
+   parse four separate numbers. */
+function renderKpiDplCard(custs){
+  const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
+  const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
+  const TARGET_RATIO = 0.18;
+  const actualRatio = totalBaki > 0 ? totalFunding / totalBaki : 0;
+  const achievementPct = totalBaki > 0 ? (actualRatio / TARGET_RATIO * 100) : 0;
+  const barPct = Math.min(achievementPct, 100);
+  const statusColor = achievementPct >= 100 ? 'var(--success)' : achievementPct >= 70 ? 'var(--warning)' : 'var(--danger)';
+  $('kpiDplCard').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;color:var(--text-muted)">Rasio Aktual (Tabungan+Giro+Deposito ÷ Baki Debet): <strong style="color:var(--text)">${(actualRatio*100).toFixed(1)}%</strong> dari target <strong>18%</strong></div>
+      <div style="font-size:22px;font-weight:800;color:${statusColor}">${achievementPct.toFixed(1)}%</div>
+    </div>
+    <div style="height:22px;background:var(--surface-alt);border-radius:11px;overflow:hidden;border:1px solid var(--border)">
+      <div style="height:100%;width:${barPct}%;background:${statusColor};border-radius:11px;transition:width .3s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--text-soft);flex-wrap:wrap;gap:6px">
+      <span>Realisasi Simpanan: ${fmtRupiah(totalFunding)}</span>
+      <span>Target (18% × Baki Debet): ${fmtRupiah(totalBaki*TARGET_RATIO)}</span>
+    </div>
+  `;
 }
 
 function renderStats(){
@@ -1575,6 +1681,26 @@ window.toggleCustRow = function(cif){
   else State.expandedRows.add(cif);
   renderCustTable();
 };
+
+/* Jumps to Customer View (One Page Customer View) from anywhere in the app,
+   already searched down to and expanded on one specific customer — used by
+   the "Lihat Detail" links on Prioritas Pengelolaan rows and Relationship
+   Opportunity entries. Only meaningful for customers that actually exist in
+   State.customers (i.e. LW321-anchored) — genuinely-new funding-only
+   prospects have no Customer 360 record to jump to, so callers should not
+   render this link for those. */
+function goToCustomerDetail(cif){
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+  const btn = document.querySelector('.tab[data-panel="customers"]');
+  if(btn) btn.classList.add('active');
+  $('panel-customers').classList.add('active');
+  $('custSearch').value = cif;
+  State.expandedRows.add(cif);
+  applyCustFilters();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+window.goToCustomerDetail = goToCustomerDetail;
 
 /* ===================================================================
    RENDER: CUSTOMER DETAIL (Single Customer View)
@@ -1804,10 +1930,12 @@ function selectOpp(k, resetPinjamanPage=true){
     list = sortMode === 'saldo' ? list.slice().sort((a,b)=>b.saldo-a.saldo) : list.slice();
     const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
     const visible = list.slice(0, pageSize);
-    const entries = visible.map(p => `
+    const entries = visible.map(p => {
+      const tier = getValueTier(p.saldo);
+      return `
       <div class="opp-entry">
         <div class="opp-entry-head">
-          <span>${escapeHtml(p.nama || '(tanpa nama)')}</span>
+          <span>${escapeHtml(p.nama || '(tanpa nama)')}${tier ? ` <span class="badge-pill" style="background:${tier.color};color:#fff;font-weight:800">${tier.label}</span>` : ''}</span>
           <span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span>
         </div>
         <div class="detail-grid">
@@ -1815,9 +1943,11 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
         </div>
-        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${p.produk.map(x=>escapeHtml(x)).join(', ')}</strong> di BRI, ${p.everHadLoan ? 'kreditnya sudah lunas/tidak aktif saat ini' : 'tapi belum pernah tercatat punya fasilitas kredit'} — kandidat pipeline kredit untuk RM SME.</div>
+        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${p.produk.map(x=>escapeHtml(x)).join(', ')}</strong> di BRI, ${p.everHadLoan ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)' : 'tapi belum pernah tercatat punya fasilitas kredit'} — kandidat pipeline kredit untuk RM SME.</div>
+        ${p.everHadLoan ? `<div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">Lihat Detail</button></div>` : ''}
       </div>
-    `).join('');
+    `;
+    }).join('');
     const loadMore = list.length > pageSize
       ? `<div style="text-align:center;padding:14px"><button class="btn btn-outline btn-sm" onclick="growPinjamanOppPage()">Muat ${OPP_DISPLAY_CAP} Lagi</button></div>` : '';
     $('oppDetail').innerHTML = `
@@ -1844,6 +1974,7 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
       </div>
       ${buildOppInsightNote(c, k)}
+      <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')">Lihat Detail</button></div>
     </div>
   `).join('');
   $('oppDetail').innerHTML = `
@@ -1976,8 +2107,9 @@ function renderPriorityTable(){
       <td><span class="badge-pill ${QUAD_DEFS[r.quad].badgeCls}">${QUAD_DEFS[r.quad].label}</span></td>
       <td>${escapeHtml(cleanPn(r.c.loans[0]?.pnPengelola))}</td>
       <td>${escapeHtml(r.c.rmFundingList && r.c.rmFundingList.length ? r.c.rmFundingList.join(', ') : '-')}</td>
+      <td class="ctr"><button class="btn btn-outline btn-sm" onclick="goToCustomerDetail('${escapeHtml(r.c.cif)}')">Lihat Detail</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="6" class="empty">Tidak ada nasabah yang cocok.</td></tr>';
+  `).join('') || '<tr><td colspan="7" class="empty">Tidak ada nasabah yang cocok.</td></tr>';
 }
 
 
@@ -1990,6 +2122,7 @@ function renderPriorityTab(){
   renderPriorityTable();
   $('badgePriority').textContent = State.priority.quadCounts.needsVisit;
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
+  renderKpiDplCard(getScopedCustomers());
 
   const p = State.priority;
   $('priorityTableHint').textContent =
@@ -2080,7 +2213,7 @@ function renderCharts(){
   // smaller than the real total shown in the Simpanan table (which already
   // combines both sources). Deposito stays loan-customer-only: CI324 has no
   // CIF column, so a genuinely new deposito-only prospect can't be identified.
-  (State.fundingOnlyProspects||[]).forEach(p => {
+  getScopedFundingOnlyProspects().forEach(p => {
     if(p.tabungan) prodCount.Tabungan++;
     if(p.giro) prodCount.Giro++;
     if(p.edc) prodCount.EDC++;
