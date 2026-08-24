@@ -2137,9 +2137,15 @@ function renderCharts(){
   // Deposit to Loan bucketed by range, so it's obvious at a glance how many
   // customers have little-to-no funding relationship vs. a well-covered one.
   // 0–10% split into 0–5%/5–10% to line up with the <5%/≥5% threshold above.
+  // Only customers with an actual outstanding loan (fundingCoverage isn't
+  // null) are bucketed — a customer with Baki Debet = 0 (loan fully paid
+  // off) has no Deposit to Loan ratio to speak of, so folding them into
+  // "0%" would overcount that bucket against a population that never had a
+  // ratio in the first place. This keeps the population here consistent
+  // with Top 10 Nasabah Prioritas untuk Review, which uses the same filter.
   const covBuckets = {'0%':0, '>0–5%':0, '>5–10%':0, '>10–25%':0, '>25–50%':0, '>50%':0};
-  custs.forEach(c => {
-    const cov = (c.fundingCoverage ?? 0) * 100;
+  custs.filter(c => c.fundingCoverage != null).forEach(c => {
+    const cov = c.fundingCoverage * 100;
     if(cov <= 0) covBuckets['0%']++;
     else if(cov <= 5) covBuckets['>0–5%']++;
     else if(cov <= 10) covBuckets['>5–10%']++;
