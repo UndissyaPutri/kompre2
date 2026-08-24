@@ -2176,7 +2176,7 @@ function renderPriorityReviewTable(){
   $('priorityReviewBody').innerHTML = list.length ? list.map(c => `
     <tr>
       <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
-      <td class="num">${(c.fundingCoverage*100).toFixed(1)}%</td>
+      <td class="num">${(c.fundingCoverage*100).toFixed(2)}%</td>
     </tr>
   `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
 }
