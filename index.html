@@ -422,7 +422,7 @@ table.data-table td.empty{text-align:center}
    <div class="upload-wrap">
     <div class="upload-intro">
       <h2>Customer Relationship Management — Model Pengelolaan Relationship Nasabah Eksisting Berbasis Data</h2>
-      <p>Upload sumber data di bawah. <code>LW321 (Pinjaman)</code> wajib diupload — semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap One Page Customer View, Prioritas Pengelolaan, dan Relationship Opportunity yang dihasilkan.</p>
+      <p><code>LW321 (Pinjaman)</code> wajib diupload — semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap Profil Nasabah, Prioritas Pengelolaan, dan Peluang Pengembangan yang dihasilkan.</p>
     </div>
     <div class="slot-grid" id="slotGrid"></div>
     <div class="upload-actions">
@@ -467,13 +467,12 @@ table.data-table td.empty{text-align:center}
     </div>
     <div class="tabs no-print" role="tablist">
       <button class="tab active" data-panel="overview">Ringkasan</button>
-      <button class="tab" data-panel="customers">Customer View<span class="badge" id="badgeCust">0</span></button>
+      <button class="tab" data-panel="customers">Profil Nasabah<span class="badge" id="badgeCust">0</span></button>
       <button class="tab" data-panel="priority">Prioritas Pengelolaan<span class="badge" id="badgePriority">0</span></button>
-      <button class="tab" data-panel="opportunity">Relationship Opportunity</button>
+      <button class="tab" data-panel="opportunity">Peluang Pengembangan</button>
     </div>
     <!-- TAB: OVERVIEW -->
     <div class="tab-panel active" id="panel-overview">
-      <p style="font-size:11.5px;color:var(--text-soft);margin:0 0 8px;font-style:italic">Catatan: Pinjaman &amp; Merchant mengikuti filter Regional/Cabang/Unit Kerja/RM di atas. Simpanan dihitung dari keseluruhan data (termasuk nasabah simpanan yang belum punya pinjaman), tidak ikut filter cabang.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
         <div>
           <div class="detail-section-title">Pinjaman</div>
@@ -509,6 +508,11 @@ table.data-table td.empty{text-align:center}
           <h3>Distribusi Deposit to Loan Nasabah</h3>
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
+        <div class="chart-card">
+          <h3>Top 10 Nasabah — Funding Gap Terbesar (vs Minimum 5%)</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartFundingGap"></canvas></div>
+          <p class="upload-hint" style="margin-top:8px" id="fundingGapNote"></p>
+        </div>
       </div>
     </div>
     <!-- TAB: CUSTOMERS -->
@@ -516,8 +520,7 @@ table.data-table td.empty{text-align:center}
       <div class="panel">
         <div class="panel-header">
           <div>
-            <div class="panel-title">One Page Customer View — Daftar Nasabah</div>
-            <div style="font-size:11.5px;color:rgba(255,255,255,.72);margin-top:2px;font-style:italic">"Kondisi relationship customer ini bagaimana?" — lending, funding, transaksi, dan produk dalam satu tampilan.</div>
+            <div class="panel-title">Profil Nasabah — Daftar Nasabah</div>
           </div>
           <div class="panel-actions"><span style="font-size:12px;color:var(--text-muted)" id="custCounter">0 nasabah</span></div>
         </div>
@@ -535,7 +538,7 @@ table.data-table td.empty{text-align:center}
               <option value="noDeposito">Belum punya Deposito</option>
               <option value="noMerchantEdc">Belum punya EDC</option>
               <option value="noMerchantQris">Belum punya QRIS</option>
-              <option value="hasOpp">Punya Relationship Opportunity</option>
+              <option value="hasOpp">Punya Peluang Pengembangan</option>
             </select>
             <button class="btn btn-outline btn-sm" id="btnClearCustFilter">Reset</button>
           </div>
@@ -551,7 +554,7 @@ table.data-table td.empty{text-align:center}
                   <th class="sortable num" data-sort="totalFunding">Total Funding</th>
                   <th class="sortable num" data-sort="fundingCoverage" title="Deposit to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">Deposit to Loan ℹ️</th>
                   <th>Produk Dimiliki</th>
-                  <th class="sortable" data-sort="oppCount" title="Jenis &amp; jumlah relationship opportunity yang terdeteksi otomatis. Arahkan kursor ke setiap badge untuk detail, atau buka tab Relationship Opportunity untuk daftar lengkap dan rekomendasinya.">Peluang ℹ️</th>
+                  <th class="sortable" data-sort="oppCount" title="Jenis &amp; jumlah peluang pengembangan yang terdeteksi otomatis. Arahkan kursor ke setiap badge untuk detail, atau buka tab Peluang Pengembangan untuk daftar lengkap dan rekomendasinya.">Peluang ℹ️</th>
                 </tr>
               </thead>
               <tbody id="custBody"></tbody>
@@ -565,12 +568,10 @@ table.data-table td.empty{text-align:center}
       <div class="panel">
         <div class="panel-header">
           <div>
-            <div class="panel-title">Relationship Opportunity</div>
-            <div style="font-size:11.5px;color:rgba(255,255,255,.72);margin-top:2px;font-style:italic">"Apa yang masih bisa dikembangkan dari customer ini?" — funding gap, product/transaction gap, dan rekomendasi aksi.</div>
+            <div class="panel-title">Peluang Pengembangan</div>
           </div>
         </div>
         <div class="panel-body">
-          <p class="upload-hint" style="margin-bottom:10px">Kategori <strong>Pinjaman</strong> = peluang RM SME (nasabah sudah punya simpanan, belum punya pinjaman). Kategori lain = peluang RM FT (nasabah sudah punya pinjaman, belum lengkap funding/merchant). Klik kategori untuk lihat daftar nasabahnya.</p>
           <div class="opp-grid" id="oppGrid"></div>
           <div class="search-wrap no-print" style="margin-bottom:8px;max-width:420px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -600,14 +601,9 @@ table.data-table td.empty{text-align:center}
         <div class="panel-header">
           <div>
             <div class="panel-title">Prioritas Pengelolaan — Deposit to Loan</div>
-            <div style="font-size:11.5px;color:rgba(255,255,255,.72);margin-top:2px;font-style:italic">"Customer mana yang perlu gue fokuskan?" — screening berdasarkan Deposit to Loan dan exposure (OS).</div>
           </div>
         </div>
         <div class="panel-body">
-          <div class="info-banner">
-            Deposit to Loan pakai threshold tetap (bukan persentil portfolio), jadi nasabah cukup dibagi 2: <strong>Perlu Kunjungan</strong> (Deposit to Loan &lt; 5%) dan <strong>Sehat</strong> (≥ 5%). Di dalam grup "Perlu Kunjungan", nasabah diurutkan dari <strong>OS (Baki Debet) terbesar</strong> — karena semakin besar OS dengan funding yang minim, semakin besar juga relationship gap yang perlu digarap duluan. Nasabah dengan OS di bawah Rp 1 juta tidak diikutkan di sini (rasio Deposit to Loan-nya jadi tidak bermakna kalau dibagi angka mendekati nol, dan eksposurnya memang terlalu kecil untuk jadi prioritas pengelolaan) — data mereka tetap utuh di tab lain.
-          </div>
-          <p style="font-size:11.5px;color:var(--text-soft);margin:-4px 0 8px;font-style:italic">Konteks portfolio nasabah pinjaman (LW321) sesuai filter — dasar dari perhitungan Deposit to Loan di bawah.</p>
           <p id="kpiDplCard" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px"></p>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
             <div>
@@ -638,10 +634,8 @@ table.data-table td.empty{text-align:center}
             <div class="customer-hero-inner" id="priorityBasisContent"></div>
           </div>
           <div class="detail-section-title">Ringkasan: Perlu Kunjungan vs Sehat</div>
-          <p class="upload-hint" style="margin:-4px 0 10px" id="priorityScopeNote"></p>
           <div class="opp-grid" id="priorityQuadGrid"></div>
           <div class="detail-section-title">Daftar Prioritas Pengelolaan</div>
-          <div class="upload-hint" style="margin-bottom:8px" id="priorityTableHint"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
             <div class="search-wrap no-print" style="max-width:420px;flex:1">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -762,7 +756,7 @@ function findPairedRmFt(rmSmeValue){
   return pair ? pair.rmFt : null;
 }
 /* Reverse of findPairedRmFt — given an RM FT, find their paired RM SME. Used
-   to widen Relationship Opportunity when filtering by RM FT: a customer with
+   to widen Peluang Pengembangan when filtering by RM FT: a customer with
    NO funding products at all has an empty rmFundingList and would otherwise
    never match any RM FT filter, even though their loan is managed by that
    RM FT's paired RM SME partner — which is exactly the shared-pipeline case
@@ -787,7 +781,7 @@ function findPairedRmSme(rmFtValue){
    products, who would otherwise be invisible to their own paired RM FT.
    Deliberately kept separate from getScopedCustomers (used everywhere else:
    Ringkasan totals, Customer 360, Prioritas Pengelolaan) so this widening
-   only affects Relationship Opportunity, not portfolio-wide numbers. */
+   only affects Peluang Pengembangan, not portfolio-wide numbers. */
 function getOppScopedCustomers(){
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
   let list = [...State.customers.values()];
@@ -1647,7 +1641,7 @@ window.toggleCustRow = function(cif){
   else State.expandedRows.add(cif);
   renderCustTable();
 };
-/* Jumps to Customer View (One Page Customer View) from anywhere in the app,
+/* Jumps to Profil Nasabah from anywhere in the app,
    already searched down to and expanded on one specific customer — used by
    the "Lihat Detail" links on Prioritas Pengelolaan rows and Relationship
    Opportunity entries. Only meaningful for customers that actually exist in
@@ -1667,7 +1661,7 @@ function goToCustomerDetail(cif){
 }
 window.goToCustomerDetail = goToCustomerDetail;
 /* ===================================================================
-   RENDER: CUSTOMER DETAIL (Single Customer View)
+   RENDER: CUSTOMER DETAIL (Profil Nasabah)
    ================================================================= */
 /* Recommendation logic tiered by Kolektibilitas, since a "normal" cross-sell
    pitch (open a savings account, try QRIS, etc.) makes no sense for an
@@ -1737,7 +1731,7 @@ function renderCustomerDetail(c){
     <div class="detail-content">
       <div class="customer-hero" style="margin-bottom:14px">
         <div class="customer-hero-inner">
-          <span class="label-tag">Customer Relationship View</span>
+          <span class="label-tag">Profil Nasabah</span>
           <div class="cname">${escapeHtml(c.nama)}</div>
           <div class="customer-hero-grid">
             <div><div class="f-label">CIF</div><div class="f-value">${escapeHtml(c.cif)}</div></div>
@@ -1756,7 +1750,7 @@ function renderCustomerDetail(c){
           </div>
         </div>
       </div>
-      <div class="detail-section-title">Business Opportunity — Rekomendasi</div>
+      <div class="detail-section-title">Peluang Pengembangan — Rekomendasi</div>
       ${oppHtml}
       <div class="detail-section-title">Fasilitas Kredit (${c.loans.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Jenis</th><th>Kol</th><th class="num">Plafon</th><th class="num">Baki Debet</th><th class="num">Tunggakan</th><th class="ctr">Rate</th><th>Jatuh Tempo</th><th>RM Pengelola Kredit</th></tr></thead><tbody>${loansRows}</tbody></table></div>
@@ -1801,7 +1795,7 @@ function renderOppGrid(){
 function looksLikeBadanUsaha(nama){
   return /^(PT|CV|UD|PD|KOPERASI|FIRMA|YAYASAN|KSP|BUMDES)\b/i.test(cleanStr(nama));
 }
-/* Builds one contextual, per-customer insight for a Relationship Opportunity entry —
+/* Builds one contextual, per-customer insight for a Peluang Pengembangan entry —
    instead of a flat "belum punya X" for everyone in the category, it names
    what the customer DOES already have at BRI (so the RM understands there's
    already a relationship to build on, i.e. a live "tap-in" point) versus
@@ -1953,17 +1947,7 @@ function computePriorityData(){
   // Clear any stale tags from a previous (differently-scoped) computation first,
   // so a customer who falls out of scope doesn't keep an old status label.
   State.customers.forEach(c => { c.priorityQuad = null; });
-  // Excludes near-zero OS (not just literally zero) — a nearly-paid-off loan
-  // (e.g. Rp 9,456 outstanding) makes Deposit to Loan explode toward infinity
-  // once you divide by a denominator that small, and such a customer isn't a
-  // meaningful "needs visit" case either way (their exposure is negligible
-  // regardless of the ratio). This only affects Prioritas Pengelolaan — the
-  // customer's real data is untouched everywhere else in the app (Ringkasan,
-  // Customer 360, stats, exports all still include them normally).
-  const MIN_OS_FOR_PRIORITY = 1000000; // Rp 1 juta
-  const scoped = getScopedCustomers();
-  const custs = scoped.filter(c => c.totalBakiDebet >= MIN_OS_FOR_PRIORITY);
-  const excludedCount = scoped.length - custs.length;
+  const custs = getScopedCustomers();
   const osArr = custs.map(c => c.totalBakiDebet).sort((a,b)=>a-b);
   const covArr = custs.map(c => c.fundingCoverage ?? 0).sort((a,b)=>a-b);
   const COV_FIXED_THRESHOLD = 0.05; // Deposit to Loan policy threshold: <5% vs ≥5%.
@@ -2039,10 +2023,6 @@ function renderPriorityTab(){
   $('badgePriority').textContent = State.priority.quadCounts.needsVisit;
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
   renderKpiDplCard(getScopedCustomers());
-  const p = State.priority;
-  $('priorityTableHint').textContent =
-    `${QUAD_DEFS.needsVisit.label} = ${p.quadCounts.needsVisit} nasabah, ${QUAD_DEFS.sehat.label} = ${p.quadCounts.sehat} nasabah. ` +
-    `Daftar di bawah diurutkan: "${QUAD_DEFS.needsVisit.label}" duluan (dari OS terbesar), baru "${QUAD_DEFS.sehat.label}".`;
 }
 /* Makes explicit whether the Deposit to Loan threshold is currently the
    default fixed 5% or a manual override. */
@@ -2080,7 +2060,7 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
    CHARTS
    ================================================================= */
 function renderCharts(){
-  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist'];
+  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist','fundingGap'];
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
   const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
@@ -2165,6 +2145,35 @@ function renderCharts(){
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
+  // Funding Gap = (5% x Baki Debet) - Total Funding — how much funding a
+  // customer would still need to reach the minimum 5% Deposit to Loan
+  // policy threshold. Only positive gaps are shown (customers already
+  // above 5% have no gap to close). This directly feeds Prioritas
+  // Pengelolaan: the biggest gaps here are the customers most worth
+  // visiting first. Bars are clickable and jump to Profil Nasabah.
+  const fundingGapList = custs
+    .map(c => ({c, gap: (c.totalBakiDebet * 0.05) - c.totalFunding}))
+    .filter(r => r.gap > 0)
+    .sort((a,b) => b.gap - a.gap)
+    .slice(0, 10);
+  State.charts.fundingGap = new Chart($('chartFundingGap'), {
+    type:'bar',
+    data:{labels:fundingGapList.map(r=>r.c.nama.length>22?r.c.nama.slice(0,20)+'…':r.c.nama), datasets:[{label:'Funding Gap', data:fundingGapList.map(r=>r.gap), backgroundColor:'#d64545', borderRadius:4}]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}},
+      scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}},
+      onClick:(evt, elements) => {
+        if(!elements.length) return;
+        const r = fundingGapList[elements[0].index];
+        if(r) goToCustomerDetail(r.c.cif);
+      },
+      onHover:(evt, elements, chart) => { chart.canvas.style.cursor = elements.length ? 'pointer' : 'default'; }
+    }
+  });
+  $('fundingGapNote').textContent = fundingGapList.length
+    ? `${fundingGapList.length} nasabah dengan funding gap terbesar terhadap minimum 5% dapat menjadi fokus awal penguatan relationship funding. Klik bar untuk membuka Profil Nasabah.`
+    : 'Tidak ada nasabah dengan funding gap terhadap minimum 5% pada scope filter saat ini.';
 }
 /* ===================================================================
    EXPORT TO EXCEL
@@ -2185,7 +2194,7 @@ function exportToExcel(){
       'Deposit to Loan (%)','Jml Peluang','Detail Peluang'];
     const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryRows]);
     wsSummary['!cols'] = summaryHeader.map(h=>({wch:Math.max(14,h.length+2)}));
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Customer 360 Summary');
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Profil Nasabah');
     // Excel sheet names can't contain : \ / ? * [ ] and must be ≤31 chars —
     // "Ekosistem EDC/QRIS" has a "/" in it, which silently produces a file
     // Excel has to "repair" on open (this was the actual reason the export
@@ -2207,7 +2216,7 @@ function exportToExcel(){
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(OPP_DEFS[k].label));
     });
-    const filename = `Customer360_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const filename = `ProfilNasabah_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('File Excel berhasil diunduh!', 'success');
   } catch(e){
