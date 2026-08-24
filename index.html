@@ -12,24 +12,24 @@
   --brand-dark:#063f8f;
   --brand-darker:#042a63;
   --brand-mid:#2f7ee2;
-  --accent:#dce8f5;
-  --accent-mid:#8fb4d6;
-  --accent-soft:#f0f3f7;
-  --bg:#f2f4f7;
+  --accent:#d4f0f7;
+  --accent-mid:#70c4e7;
+  --accent-soft:#eef9fc;
+  --bg:#eef5fb;
   --surface:#ffffff;
-  --surface-alt:#f7f8fa;
-  --border:#d7dbe1;
+  --surface-alt:#f4f9fd;
+  --border:#d3e6f4;
   --text:#0b2540;
   --text-muted:#5a7691;
   --text-soft:#8ba6bd;
   --success:#0a9d6e;
-  --warning:#b8860b;
-  --danger:#c0392b;
-  --k1:#0a9d6e; --k2:#b8860b; --k3:#c0392b; --k4:#a52820; --k5:#7a1a1a;
-  --shadow-sm:0 1px 2px rgba(20,30,45,.06);
-  --shadow-md:0 1px 3px rgba(20,30,45,.08);
-  --shadow-lg:0 2px 8px rgba(20,30,45,.12);
-  --radius-sm:2px; --radius:2px; --radius-lg:3px;
+  --warning:#d69a12;
+  --danger:#d64545;
+  --k1:#0a9d6e; --k2:#d69a12; --k3:#e07b1f; --k4:#d6592f; --k5:#d64545;
+  --shadow-sm:0 1px 2px rgba(8,86,195,.06);
+  --shadow-md:0 2px 6px rgba(8,86,195,.08);
+  --shadow-lg:0 4px 14px rgba(8,86,195,.12);
+  --radius-sm:3px; --radius:4px; --radius-lg:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -57,7 +57,7 @@ body{
 .header-actions{display:flex;gap:10px;flex-wrap:wrap}
 .btn{
   display:inline-flex;align-items:center;gap:7px;
-  padding:9px 16px;border:none;border-radius:3px;cursor:pointer;
+  padding:9px 16px;border:none;border-radius:8px;cursor:pointer;
   font-size:13px;font-weight:600;transition:all .15s;
   font-family:inherit;
 }
@@ -96,16 +96,16 @@ body{
 .slot-card.dragging{border-color:var(--brand);background:var(--accent-soft)}
 .slot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
 .slot-title{font-size:13.5px;font-weight:700;color:var(--text)}
-.slot-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:3px}
+.slot-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:10px}
 .slot-badge.req{background:#fde9e5;color:var(--danger)}
 .slot-badge.opt{background:var(--accent-soft);color:var(--brand-dark)}
 .slot-desc{font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5}
-.slot-status{font-size:12px;padding:8px 10px;border-radius:2px;background:var(--surface-alt);color:var(--text-muted);display:block;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
+.slot-status{font-size:12px;padding:8px 10px;border-radius:6px;background:var(--surface-alt);color:var(--text-muted);display:block;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
 .slot-status.ok{background:#e5f6ef;color:var(--success);font-weight:600}
 .slot-status.err{background:#fdeceb;color:var(--danger);font-weight:600}
 .slot-input{display:none}
 .slot-pick{
-  margin-top:8px;width:100%;padding:8px;border-radius:3px;border:1px solid var(--border);
+  margin-top:8px;width:100%;padding:8px;border-radius:7px;border:1px solid var(--border);
   background:var(--surface-alt);color:var(--brand-dark);font-weight:600;font-size:12px;cursor:pointer;text-align:center;
 }
 .slot-pick:hover{background:var(--accent-soft);border-color:var(--brand)}
@@ -115,16 +115,16 @@ body{
    turns solid blue with a visible shadow the moment it becomes clickable
    so it clearly invites the click. */
 #btnProcess{
-  padding:14px 36px;font-size:15px;font-weight:700;border-radius:4px;
+  padding:14px 36px;font-size:15px;font-weight:700;border-radius:10px;
   transition:background .15s, box-shadow .15s, transform .1s;
 }
 #btnProcess:disabled{
   background:#d7dee6;color:#8592a1;opacity:1;cursor:not-allowed;box-shadow:none;
 }
 #btnProcess:not(:disabled){
-  background:var(--brand);color:#fff;box-shadow:none;
+  background:var(--brand);color:#fff;box-shadow:0 4px 14px rgba(8,86,195,.4);
 }
-#btnProcess:not(:disabled):hover{background:var(--brand-dark)}
+#btnProcess:not(:disabled):hover{background:var(--brand-dark);transform:translateY(-1px)}
 .progress-card{
   background:var(--surface);border-radius:var(--radius);padding:20px;
   box-shadow:var(--shadow-md);margin-bottom:18px;display:none;
@@ -133,8 +133,8 @@ body{
 .progress-card.show{display:block;animation:fadeIn .3s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .progress-info{display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px}
-.progress-track{height:8px;background:var(--border);border-radius:2px;overflow:hidden}
-.progress-fill{height:100%;background:var(--brand);border-radius:2px;transition:width .2s;width:0%}
+.progress-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:var(--brand);border-radius:4px;transition:width .2s;width:0%}
 /* ===================== DASHBOARD ===================== */
 .dashboard{display:none}
 .dashboard.show{display:block}
@@ -177,7 +177,7 @@ body{
 .tab{
   flex:1;min-width:max-content;
   padding:10px 18px;border:none;background:transparent;
-  border-radius:2px;cursor:pointer;font-size:13px;font-weight:600;
+  border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;
   color:var(--text-muted);transition:background .1s;font-family:inherit;
   display:flex;align-items:center;gap:7px;justify-content:center;
 }
@@ -188,7 +188,7 @@ body{
 }
 .tab .badge{
   background:rgba(255,255,255,.25);color:inherit;
-  padding:1px 8px;border-radius:3px;font-size:11px;font-weight:700;
+  padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;
 }
 .tab:not(.active) .badge{background:var(--accent-soft);color:var(--brand-dark)}
 .tab-panel{display:none}
@@ -217,7 +217,7 @@ body{
 }
 .input,.select{
   width:100%;padding:9px 12px;border:1px solid var(--border);
-  border-radius:3px;font-size:13px;font-family:inherit;background:var(--surface);
+  border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);
   transition:border-color .15s,box-shadow .15s;color:var(--text);
 }
 .input:focus,.select:focus{
@@ -260,19 +260,19 @@ table.data-table .ctr{text-align:center}
 .row-toggle{
   background:none;border:none;cursor:pointer;color:var(--brand);
   font-size:14px;padding:0;width:22px;height:22px;
-  border-radius:2px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:4px;display:inline-flex;align-items:center;justify-content:center;
 }
 .row-toggle:hover{background:var(--accent)}
 .row-toggle.open{transform:rotate(90deg)}
 .badge-pill{
-  display:inline-block;padding:3px 9px;border-radius:3px;
+  display:inline-block;padding:3px 9px;border-radius:12px;
   font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
 }
 .k-1{background:#e4f6ee;color:#0a7d58}
-.k-2{background:#f7f0d6;color:#8a6a12}
-.k-3{background:#fae2df;color:#a5342a}
-.k-4{background:#f6d6d2;color:#8f271e}
-.k-5{background:#f0c7c7;color:#6e1717}
+.k-2{background:#fdf3dd;color:#a17408}
+.k-3{background:#fdeadb;color:#b45f11}
+.k-4{background:#fbe3d9;color:#b4441c}
+.k-5{background:#fbe0e0;color:#b32e2e}
 .prod-yes{background:var(--accent);color:var(--brand-darker)}
 .prod-no{background:#eef1f4;color:var(--text-soft)}
 .opp-badge{background:var(--brand);color:#fff}
@@ -309,7 +309,7 @@ table.data-table .ctr{text-align:center}
 .customer-hero-grid .f-label{font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;text-align:left}
 .customer-hero-grid .f-value{font-size:13.5px;margin-top:2px;font-weight:600;text-align:left}
 .product-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-.pill{padding:4px 11px;border-radius:3px;font-size:11px;font-weight:700;background:rgba(255,255,255,.16)}
+.pill{padding:4px 11px;border-radius:14px;font-size:11px;font-weight:700;background:rgba(255,255,255,.16)}
 .pill.on{background:var(--accent);color:var(--brand-darker)}
 /* ===================== OPPORTUNITY CARDS ===================== */
 .opp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
@@ -333,7 +333,7 @@ table.data-table .ctr{text-align:center}
 .opp-detail-empty{padding:24px;text-align:center;color:var(--text-muted);font-style:italic}
 .rec-note{
   font-size:12px;color:var(--brand-dark);background:var(--accent-soft);border-left:3px solid var(--brand);
-  padding:10px 14px;border-radius:2px;margin-bottom:12px;line-height:1.6;text-align:left;
+  padding:10px 14px;border-radius:6px;margin-bottom:12px;line-height:1.6;text-align:left;
 }
 /* ===================== CHARTS ===================== */
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
@@ -346,7 +346,7 @@ table.data-table td.empty{text-align:center}
 .toast-container{position:fixed;top:80px;right:24px;z-index:100;display:flex;flex-direction:column;gap:8px}
 .toast{
   background:var(--surface);border-left:4px solid var(--brand);
-  padding:12px 16px;border-radius:3px;box-shadow:var(--shadow-lg);
+  padding:12px 16px;border-radius:8px;box-shadow:var(--shadow-lg);
   display:flex;align-items:center;gap:10px;min-width:280px;max-width:400px;
   font-size:13px;animation:slideIn .25s;
 }
@@ -356,9 +356,9 @@ table.data-table td.empty{text-align:center}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
 .info-banner{
   font-size:12px;color:var(--brand-dark);background:var(--accent-soft);border-left:3px solid var(--brand);
-  padding:10px 14px;border-radius:2px;margin-bottom:14px;line-height:1.6;
+  padding:10px 14px;border-radius:6px;margin-bottom:14px;line-height:1.6;
 }
-.diag-row{padding:6px 12px;background:var(--surface-alt);border-radius:2px;margin-bottom:4px;font-size:12.5px}
+.diag-row{padding:6px 12px;background:var(--surface-alt);border-radius:4px;margin-bottom:4px;font-size:12.5px}
 @media (max-width:768px){
   .container{padding:14px}
   .header-inner{flex-direction:column;align-items:flex-start;gap:10px}
@@ -783,17 +783,11 @@ function findPairedRmSme(rmFtValue){
    but widens the RM Pengelola FT filter specifically for opportunity
    detection: includes not just customers whose EXISTING funding accounts
    are managed by that RM FT, but also customers whose loan is managed by
-   that RM FT's paired RM SME partner AND who have no existing funding
-   relationship at all — covering customers with zero funding products, who
-   would otherwise be invisible to their own paired RM FT. The zero-funding
-   check matters: without it, a customer whose Tabungan is already actively
-   managed by a completely different (unrelated) RM FT would still show up
-   as an "opportunity" for this RM FT just because their loan RM happens to
-   be the paired SME — misattributing a relationship someone else already
-   owns. Deliberately kept separate from getScopedCustomers (used
-   everywhere else: Ringkasan totals, Customer 360, Prioritas Pengelolaan)
-   so this widening only affects Relationship Opportunity, not
-   portfolio-wide numbers. */
+   that RM FT's paired RM SME partner — covering customers with zero funding
+   products, who would otherwise be invisible to their own paired RM FT.
+   Deliberately kept separate from getScopedCustomers (used everywhere else:
+   Ringkasan totals, Customer 360, Prioritas Pengelolaan) so this widening
+   only affects Relationship Opportunity, not portfolio-wide numbers. */
 function getOppScopedCustomers(){
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
   let list = [...State.customers.values()];
@@ -805,7 +799,7 @@ function getOppScopedCustomers(){
     const pairedSme = findPairedRmSme(rmFt);
     list = list.filter(c =>
       (c.rmFundingList && c.rmFundingList.some(name => name.toUpperCase().includes(rmFt.toUpperCase()))) ||
-      (pairedSme && c.rmPengelola && c.rmPengelola.toUpperCase().includes(pairedSme.toUpperCase()) && (!c.rmFundingList || c.rmFundingList.length === 0))
+      (pairedSme && c.rmPengelola && c.rmPengelola.toUpperCase().includes(pairedSme.toUpperCase()))
     );
   }
   return list;
@@ -1108,7 +1102,6 @@ function buildCustomers(){
         cif, nama: cleanStr(row.namaDebitur),
         kanwil: cleanStr(row.kanwil), kanca: cleanStr(row.kanca),
         uker: cleanStr(row.uker) || cleanStr(row.kanca),
-        kodeUker: cleanStr(row.kodeUker),
         loans:[], tabungan:[], giro:[], deposito:[], edc:[], qris:[],
       });
     }
@@ -1202,57 +1195,19 @@ function buildCustomers(){
       addProspectRmFt(p, row.pnPengelola);
     }
   });
-  // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs
-  // NAMA_DEBITUR. Two upgrades over a naive "first match wins" approach:
-  //   (a) Names are grouped first (nameGroups: normalized name -> every
-  //       customer with that exact name), because a plain Map silently
-  //       keeps only the LAST customer inserted under a duplicate name —
-  //       with common Indonesian names, an earlier customer with the same
-  //       exact name would never be matchable at all.
-  //   (b) When a deposito row could plausibly belong to more than one
-  //       customer (duplicate exact name, or several fuzzy prefix matches),
-  //       CI324's own KODE UKER column is used to prefer whichever
-  //       candidate is actually at the same branch, instead of picking
-  //       whichever customer happens to be encountered first. This is a
-  //       real disambiguator, not a guess — branch agreement is a strong
-  //       signal two records describe the same person. It's still a
-  //       best-effort name match without a CIF, so fuzzy matches keep the
-  //       "nama mirip - cek manual" flag for manual verification.
-  const nameGroups = new Map(); // normName -> [{cif, kodeUker}]
+  // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs NAMA_DEBITUR
+  const nameIndex = new Map(); // normName -> cif (first match); handles prefix-truncated short names too
   const nameList = [];
-  customers.forEach((c, cif) => {
-    const n = normName(c.nama);
-    if(!nameGroups.has(n)) nameGroups.set(n, []);
-    nameGroups.get(n).push({cif, kodeUker:c.kodeUker});
-    nameList.push([n, cif, c.kodeUker]);
-  });
-  function pickBestCandidate(candidates, rowKodeUker){
-    if(candidates.length === 1) return candidates[0].cif;
-    const branchMatch = rowKodeUker ? candidates.find(x => x.kodeUker && x.kodeUker === rowKodeUker) : null;
-    return (branchMatch || candidates[0]).cif;
-  }
+  customers.forEach((c, cif) => { const n = normName(c.nama); nameIndex.set(n, cif); nameList.push([n, cif]); });
   (State.raw['CI324']||[]).forEach(row => {
     diagCounts.CI324.total++;
     const rn = normName(row.shortName);
-    const rowKodeUker = cleanStr(row.kodeUker);
-    let cif = null, fuzzy = false;
-    if(nameGroups.has(rn)){
-      cif = pickBestCandidate(nameGroups.get(rn), rowKodeUker);
-    } else {
-      // Fuzzy path: scan every distinct customer name, score each match by
-      // how much of the (shorter) name overlaps plus a large bonus for
-      // branch agreement, and keep the single best-scoring group — rather
-      // than stopping at the first name that happens to satisfy the
-      // prefix-match rule.
-      let bestScore = -1, bestCandidates = null;
-      for(const [n, , ] of nameList){
-        if(!namesLikelyMatch(rn, n)) continue;
-        const candidates = nameGroups.get(n);
-        let score = Math.min(rn.length, n.length);
-        if(rowKodeUker && candidates.some(x => x.kodeUker === rowKodeUker)) score += 1000;
-        if(score > bestScore){ bestScore = score; bestCandidates = candidates; }
+    let cif = nameIndex.get(rn);
+    let fuzzy = false;
+    if(!cif){
+      for(const [n, c] of nameList){
+        if(namesLikelyMatch(rn, n)){ cif = c; fuzzy = true; break; }
       }
-      if(bestCandidates){ cif = pickBestCandidate(bestCandidates, rowKodeUker); fuzzy = true; }
     }
     if(cif){
       row._principal = parseNum(row.principal);
@@ -1734,7 +1689,7 @@ function renderOpportunityRecommendations(c){
     const kolLabel = KOL_LABEL[kol] || 'bermasalah';
     notes.push(`<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f"><strong>Recovery (Kol ${kol} - ${escapeHtml(kolLabel)}):</strong> Kolektibilitas sudah bermasalah — fokus utamanya penanganan kredit bermasalah (monitoring intensif, negosiasi restrukturisasi, atau proses eksekusi jaminan), bukan cross-sell produk baru.</div>`);
   } else if(kol === 2){
-    notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#f7f0d6;color:#8a6a12"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
+    notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
   } else if(kol === 1 && c.priorityQuad === 'needsVisit'){
     notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan masih rendah (&lt;5%, lihat tab Prioritas Pengelolaan) — peluang kuat untuk kunjungan bersama RM SME &amp; RM FT guna memperdalam relationship funding.</div>`);
   }
@@ -1861,7 +1816,7 @@ function buildOppInsightNote(c, key){
   }
   if(key === 'kolWatch'){
     // Kol ≥3 already handled above, so this only fires for Kol 2 entries here.
-    return `<div class="rec-note" style="border-left-color:var(--warning);background:#f7f0d6;color:#8a6a12;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
+    return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
   }
   const owned = [];
   if(c.tabungan.length) owned.push('Tabungan');
@@ -1983,10 +1938,10 @@ $('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp
         second classification cut-off.
    ================================================================= */
 const QUAD_DEFS = {
-  needsVisit: {label:'Perlu Kunjungan', color:'#a52820', badgeCls:'k-5', sub:'Deposit to Loan di bawah threshold — funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
+  needsVisit: {label:'Perlu Kunjungan', color:'#d64545', badgeCls:'k-5', sub:'Deposit to Loan di bawah threshold — funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
   sehat:      {label:'Sehat',           color:'#0a9d6e', badgeCls:'k-1', sub:'Deposit to Loan sudah di atas threshold — funding relationship sudah sehat. Fokus maintain & deepen relationship, bukan prioritas kunjungan utama.'},
 };
-const QUAD_COLOR = {needsVisit:'#a52820', sehat:'#0a9d6e'};
+const QUAD_COLOR = {needsVisit:'#d64545', sehat:'#0a9d6e'};
 function percentile(sortedArr, p){
   if(!sortedArr.length) return 0;
   const idx = (p/100) * (sortedArr.length-1);
@@ -2031,7 +1986,7 @@ function computePriorityData(){
   });
   const quadCounts = {needsVisit:0, sehat:0};
   list.forEach(r => quadCounts[r.quad]++);
-  State.priority = {list, p25Cov, distOS, distCov, quadCounts, usingOverride, excludedCount, minOs:MIN_OS_FOR_PRIORITY, scopedCount:scoped.length};
+  State.priority = {list, p25Cov, distOS, distCov, quadCounts, usingOverride};
 }
 function renderPriorityQuadGrid(){
   const {quadCounts} = State.priority;
@@ -2088,9 +2043,6 @@ function renderPriorityTab(){
   $('priorityTableHint').textContent =
     `${QUAD_DEFS.needsVisit.label} = ${p.quadCounts.needsVisit} nasabah, ${QUAD_DEFS.sehat.label} = ${p.quadCounts.sehat} nasabah. ` +
     `Daftar di bawah diurutkan: "${QUAD_DEFS.needsVisit.label}" duluan (dari OS terbesar), baru "${QUAD_DEFS.sehat.label}".`;
-  $('priorityScopeNote').textContent = p.excludedCount > 0
-    ? `${fmtNum(p.excludedCount)} dari ${fmtNum(p.scopedCount)} nasabah pinjaman (sesuai filter di atas) tidak diikutkan di sini karena Baki Debet di bawah ${fmtRupiah(p.minOs)} — data mereka tetap utuh di tab lain.`
-    : `Semua ${fmtNum(p.scopedCount)} nasabah pinjaman dalam cakupan filter saat ini diikutkan (tidak ada yang di bawah ambang Baki Debet minimum ${fmtRupiah(p.minOs)}).`;
 }
 /* Makes explicit whether the Deposit to Loan threshold is currently the
    default fixed 5% or a manual override. */
@@ -2154,7 +2106,7 @@ function renderCharts(){
   custs.forEach(c => kolCount[c.worstKol] = (kolCount[c.worstKol]||0)+1);
   State.charts.kol = new Chart($('chartKol'), {
     type:'bar',
-    data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#b8860b','#c0392b','#a52820','#7a1a1a'], borderRadius:2}]},
+    data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#d69a12','#e07b1f','#d6592f','#d64545'], borderRadius:6}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
@@ -2209,7 +2161,7 @@ function renderCharts(){
   });
   State.charts.coverageDist = new Chart($('chartCoverageDist'), {
     type:'bar',
-    data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#7a1a1a','#a52820','#c0392b','#b8860b','#2e78d6','#0a9d6e'], borderRadius:2}]},
+    data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#d64545','#e0824a','#e07b1f','#d69a12','#2e78d6','#0a9d6e'], borderRadius:4}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
