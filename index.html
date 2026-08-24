@@ -324,6 +324,18 @@ table.data-table .ctr{text-align:center}
 .opp-card .opp-label{font-size:12px;font-weight:700;color:var(--text);margin-top:6px}
 .opp-card .opp-sub{font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.4}
 .opp-card.disabled{opacity:.45}
+.opp-groups{margin-bottom:16px}
+.opp-group{margin-bottom:16px}
+.opp-group-title{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.opp-chip-row{display:flex;flex-wrap:wrap;gap:10px}
+.opp-card.opp-chip{
+  display:inline-flex;align-items:center;gap:10px;padding:9px 16px;
+  border-radius:20px;background:var(--surface-alt);
+}
+.opp-card.opp-chip .opp-chip-label{font-size:12.5px;font-weight:700;color:var(--text)}
+.opp-card.opp-chip .opp-chip-count{font-size:14px;font-weight:800;color:var(--brand-dark)}
+.opp-card.opp-chip.active{background:var(--accent-soft)}
+.opp-divider{border:none;border-top:1px solid var(--border);margin:4px 0 16px}
 .opp-detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-top:6px}
 .opp-entry-list{display:flex;flex-direction:column;gap:10px}
 .opp-entry{border:1px solid var(--border);border-left:4px solid var(--brand);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface-alt)}
@@ -509,9 +521,9 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Top 10 Nasabah — Funding Gap Terbesar (vs Minimum 5%)</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartFundingGap"></canvas></div>
-          <p class="upload-hint" style="margin-top:8px" id="fundingGapNote"></p>
+          <h3>Top 10 Nasabah — DPK to Loan Terendah</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartDtlLowest"></canvas></div>
+          <p class="upload-hint" style="margin-top:8px" id="dtlLowestNote"></p>
         </div>
       </div>
     </div>
@@ -572,7 +584,7 @@ table.data-table td.empty{text-align:center}
           </div>
         </div>
         <div class="panel-body">
-          <div class="opp-grid" id="oppGrid"></div>
+          <div class="opp-groups" id="oppGrid"></div>
           <div class="search-wrap no-print" style="margin-bottom:8px;max-width:420px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="input" id="oppSearch" placeholder="Cari nama nasabah atau CIF...">
@@ -1327,14 +1339,24 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:      {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
-  noTabungan:    {tag:'TABUNGAN', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
-  noGiro:        {tag:'GIRO', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
-  noDeposito:    {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
-  noMerchantEdc: {tag:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
-  noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
-  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:      {tag:'PINJAMAN', chip:'Kandidat Pinjaman', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  noTabungan:    {tag:'TABUNGAN', chip:'Tabungan', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
+  noGiro:        {tag:'GIRO', chip:'Giro', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
+  noDeposito:    {tag:'DEPOSITO', chip:'Deposito', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
+  noMerchantEdc: {tag:'EDC', chip:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
+  noMerchantQris:{tag:'QRIS', chip:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
+  kolWatch:      {tag:'RECOVERY', chip:'Recovery', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
+/* Groups the flat OPP_DEFS categories into the sections the Peluang
+   Pengembangan tab is organized under: Lending / Funding / Transaksi
+   together (cross-sell opportunities), then a visual divider, then
+   Monitoring Portfolio (Recovery — a watch-list, not a cross-sell lead). */
+const OPP_GROUPS = [
+  {title:'Peluang Lending', keys:['pinjaman']},
+  {title:'Peluang Funding', keys:['noTabungan','noGiro','noDeposito']},
+  {title:'Peluang Transaksi', keys:['noMerchantEdc','noMerchantQris']},
+];
+const OPP_MONITORING_GROUP = {title:'Monitoring Portfolio', keys:['kolWatch']};
 function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
@@ -1768,22 +1790,34 @@ function renderCustomerDetail(c){
 /* ===================================================================
    RENDER: OPPORTUNITY TAB
    ================================================================= */
+function renderOppChip(k){
+  const def = OPP_DEFS[k];
+  const list = State.oppCategories[k];
+  const isEmpty = list.length === 0;
+  return `
+    <div class="opp-card opp-chip ${isEmpty?'disabled':''}" data-opp="${k}" onclick="${isEmpty?'':`selectOpp('${k}')`}" title="${escapeHtml(def.sub)}">
+      <span class="opp-chip-label">${escapeHtml(def.chip)}</span>
+      <span class="opp-chip-count">${fmtNum(list.length)}</span>
+    </div>
+  `;
+}
 function renderOppGrid(){
   computeOppCategories();
   const grid = $('oppGrid');
-  grid.innerHTML = Object.keys(OPP_DEFS).map(k => {
-    const def = OPP_DEFS[k];
-    const list = State.oppCategories[k];
-    const isEmpty = list.length === 0;
-    return `
-      <div class="opp-card ${isEmpty?'disabled':''}" data-opp="${k}" onclick="${isEmpty?'':`selectOpp('${k}')`}">
-        <div class="opp-icon">${def.tag}</div>
-        <div class="opp-count">${list.length}</div>
-        <div class="opp-label">${def.label}</div>
-        <div class="opp-sub">${def.sub}</div>
-      </div>
-    `;
-  }).join('');
+  const groupsHtml = OPP_GROUPS.map(g => `
+    <div class="opp-group">
+      <div class="opp-group-title">${escapeHtml(g.title)}</div>
+      <div class="opp-chip-row">${g.keys.map(renderOppChip).join('')}</div>
+    </div>
+  `).join('');
+  const monitoringHtml = `
+    <hr class="opp-divider">
+    <div class="opp-group">
+      <div class="opp-group-title">${escapeHtml(OPP_MONITORING_GROUP.title)}</div>
+      <div class="opp-chip-row">${OPP_MONITORING_GROUP.keys.map(renderOppChip).join('')}</div>
+    </div>
+  `;
+  grid.innerHTML = groupsHtml + monitoringHtml;
   const firstNonEmpty = Object.keys(OPP_DEFS).find(k => State.oppCategories[k].length > 0);
   if(firstNonEmpty) selectOpp(firstNonEmpty);
   else $('oppDetail').innerHTML = '<div class="opp-detail-empty">Tidak ada peluang bisnis yang terdeteksi dari data saat ini.</div>';
@@ -2060,7 +2094,7 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
    CHARTS
    ================================================================= */
 function renderCharts(){
-  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist','fundingGap'];
+  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist','dtlLowest'];
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
   const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
@@ -2145,35 +2179,35 @@ function renderCharts(){
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
-  // Funding Gap = (5% x Baki Debet) - Total Funding — how much funding a
-  // customer would still need to reach the minimum 5% Deposit to Loan
-  // policy threshold. Only positive gaps are shown (customers already
-  // above 5% have no gap to close). This directly feeds Prioritas
-  // Pengelolaan: the biggest gaps here are the customers most worth
-  // visiting first. Bars are clickable and jump to Profil Nasabah.
-  const fundingGapList = custs
-    .map(c => ({c, gap: (c.totalBakiDebet * 0.05) - c.totalFunding}))
-    .filter(r => r.gap > 0)
-    .sort((a,b) => b.gap - a.gap)
+  // 10 customers with the lowest Deposit to Loan (DPK to Loan) ratio — the
+  // funding relationship is thinnest here relative to their pinjaman, so
+  // these are the first candidates to visit. Only customers with an actual
+  // loan (totalBakiDebet > 0, i.e. fundingCoverage isn't null) are ranked —
+  // a customer with no loan has no DPK to Loan ratio to speak of. Bars are
+  // clickable and jump straight to Profil Nasabah.
+  const dtlLowestList = custs
+    .filter(c => c.fundingCoverage != null)
+    .slice()
+    .sort((a,b) => a.fundingCoverage - b.fundingCoverage)
     .slice(0, 10);
-  State.charts.fundingGap = new Chart($('chartFundingGap'), {
+  State.charts.dtlLowest = new Chart($('chartDtlLowest'), {
     type:'bar',
-    data:{labels:fundingGapList.map(r=>r.c.nama.length>22?r.c.nama.slice(0,20)+'…':r.c.nama), datasets:[{label:'Funding Gap', data:fundingGapList.map(r=>r.gap), backgroundColor:'#d64545', borderRadius:4}]},
+    data:{labels:dtlLowestList.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'DPK to Loan', data:dtlLowestList.map(c=>(c.fundingCoverage*100)), backgroundColor:'#d64545', borderRadius:4}]},
     options:{
       indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}},
-      scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+'%'}}},
+      scales:{x:{ticks:{callback:v=>v+'%'}}},
       onClick:(evt, elements) => {
         if(!elements.length) return;
-        const r = fundingGapList[elements[0].index];
-        if(r) goToCustomerDetail(r.c.cif);
+        const c = dtlLowestList[elements[0].index];
+        if(c) goToCustomerDetail(c.cif);
       },
       onHover:(evt, elements, chart) => { chart.canvas.style.cursor = elements.length ? 'pointer' : 'default'; }
     }
   });
-  $('fundingGapNote').textContent = fundingGapList.length
-    ? `${fundingGapList.length} nasabah dengan funding gap terbesar terhadap minimum 5% dapat menjadi fokus awal penguatan relationship funding. Klik bar untuk membuka Profil Nasabah.`
-    : 'Tidak ada nasabah dengan funding gap terhadap minimum 5% pada scope filter saat ini.';
+  $('dtlLowestNote').textContent = dtlLowestList.length
+    ? `${dtlLowestList.length} nasabah dengan DPK to Loan terendah — funding relationship paling minim dibanding pinjamannya, jadi fokus awal prioritas kunjungan. Klik bar untuk membuka Profil Nasabah.`
+    : 'Tidak ada nasabah pinjaman pada scope filter saat ini.';
 }
 /* ===================================================================
    EXPORT TO EXCEL
