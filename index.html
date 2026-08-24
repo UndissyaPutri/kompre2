@@ -3,35 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Relationship Engine</title>
-
+<title>Customer Relationship Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-
 <style>
 :root{
   --brand:#0856c3;
   --brand-dark:#063f8f;
   --brand-darker:#042a63;
   --brand-mid:#2f7ee2;
-  --accent:#d4f0f7;
-  --accent-mid:#70c4e7;
-  --accent-soft:#eef9fc;
-  --bg:#eef5fb;
+  --accent:#dce8f5;
+  --accent-mid:#8fb4d6;
+  --accent-soft:#f0f3f7;
+  --bg:#f2f4f7;
   --surface:#ffffff;
-  --surface-alt:#f4f9fd;
-  --border:#d3e6f4;
+  --surface-alt:#f7f8fa;
+  --border:#d7dbe1;
   --text:#0b2540;
   --text-muted:#5a7691;
   --text-soft:#8ba6bd;
   --success:#0a9d6e;
-  --warning:#d69a12;
-  --danger:#d64545;
-  --k1:#0a9d6e; --k2:#d69a12; --k3:#e07b1f; --k4:#d6592f; --k5:#d64545;
-  --shadow-sm:0 1px 2px rgba(8,86,195,.06);
-  --shadow-md:0 2px 6px rgba(8,86,195,.08);
-  --shadow-lg:0 4px 14px rgba(8,86,195,.12);
-  --radius-sm:3px; --radius:4px; --radius-lg:6px;
+  --warning:#b8860b;
+  --danger:#c0392b;
+  --k1:#0a9d6e; --k2:#b8860b; --k3:#c0392b; --k4:#a52820; --k5:#7a1a1a;
+  --shadow-sm:0 1px 2px rgba(20,30,45,.06);
+  --shadow-md:0 1px 3px rgba(20,30,45,.08);
+  --shadow-lg:0 2px 8px rgba(20,30,45,.12);
+  --radius-sm:2px; --radius:2px; --radius-lg:3px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -43,7 +41,6 @@ body{
   font-size:14px;
   -webkit-font-smoothing:antialiased;
 }
-
 /* ===================== HEADER ===================== */
 .app-header{
   background:var(--brand-dark);
@@ -60,7 +57,7 @@ body{
 .header-actions{display:flex;gap:10px;flex-wrap:wrap}
 .btn{
   display:inline-flex;align-items:center;gap:7px;
-  padding:9px 16px;border:none;border-radius:8px;cursor:pointer;
+  padding:9px 16px;border:none;border-radius:3px;cursor:pointer;
   font-size:13px;font-weight:600;transition:all .15s;
   font-family:inherit;
 }
@@ -72,15 +69,12 @@ body{
 .btn-outline{background:transparent;color:var(--text);border:1.5px solid var(--border)}
 .btn-outline:hover:not(:disabled){background:var(--surface-alt);border-color:var(--brand)}
 .btn-sm{padding:6px 12px;font-size:12px}
-
 /* ===================== LAYOUT ===================== */
 .container{max-width:1500px;margin:0 auto;padding:24px 28px}
-
 /* ===================== UPLOAD ===================== */
 /* Section spans the full page width, but the slot grid inside is capped and
    centered so the upload cards stay a sensible width on very wide screens. */
 .upload-wrap{width:100%}
-
 .upload-intro{
   background:var(--surface);border-radius:var(--radius-lg);padding:22px 26px;
   margin-bottom:18px;box-shadow:var(--shadow-sm);border:1px solid var(--border);
@@ -89,7 +83,6 @@ body{
 .upload-intro h2{font-size:19px;color:var(--brand-darker);margin-bottom:6px}
 .upload-intro p{color:var(--text-muted);font-size:13px;line-height:1.6}
 .upload-intro code{background:var(--accent-soft);padding:1px 6px;border-radius:4px;color:var(--brand-dark);font-weight:600}
-
 .slot-grid{
   display:grid;grid-template-columns:repeat(3, minmax(240px, 300px));
   gap:14px;margin:0 auto 18px;justify-content:center;
@@ -103,38 +96,35 @@ body{
 .slot-card.dragging{border-color:var(--brand);background:var(--accent-soft)}
 .slot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
 .slot-title{font-size:13.5px;font-weight:700;color:var(--text)}
-.slot-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:10px}
+.slot-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:3px}
 .slot-badge.req{background:#fde9e5;color:var(--danger)}
 .slot-badge.opt{background:var(--accent-soft);color:var(--brand-dark)}
 .slot-desc{font-size:11.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5}
-.slot-status{font-size:12px;padding:8px 10px;border-radius:6px;background:var(--surface-alt);color:var(--text-muted);display:block;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
+.slot-status{font-size:12px;padding:8px 10px;border-radius:2px;background:var(--surface-alt);color:var(--text-muted);display:block;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
 .slot-status.ok{background:#e5f6ef;color:var(--success);font-weight:600}
 .slot-status.err{background:#fdeceb;color:var(--danger);font-weight:600}
 .slot-input{display:none}
 .slot-pick{
-  margin-top:8px;width:100%;padding:8px;border-radius:7px;border:1px solid var(--border);
+  margin-top:8px;width:100%;padding:8px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface-alt);color:var(--brand-dark);font-weight:600;font-size:12px;cursor:pointer;text-align:center;
 }
 .slot-pick:hover{background:var(--accent-soft);border-color:var(--brand)}
-
 .upload-actions{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:22px;text-align:center}
 .upload-hint{font-size:11.5px;color:var(--text-soft)}
-
 /* The main call-to-action: dull gray + not-allowed while LW321 is missing,
    turns solid blue with a visible shadow the moment it becomes clickable
    so it clearly invites the click. */
 #btnProcess{
-  padding:14px 36px;font-size:15px;font-weight:700;border-radius:10px;
+  padding:14px 36px;font-size:15px;font-weight:700;border-radius:4px;
   transition:background .15s, box-shadow .15s, transform .1s;
 }
 #btnProcess:disabled{
   background:#d7dee6;color:#8592a1;opacity:1;cursor:not-allowed;box-shadow:none;
 }
 #btnProcess:not(:disabled){
-  background:var(--brand);color:#fff;box-shadow:0 4px 14px rgba(8,86,195,.4);
+  background:var(--brand);color:#fff;box-shadow:none;
 }
-#btnProcess:not(:disabled):hover{background:var(--brand-dark);transform:translateY(-1px)}
-
+#btnProcess:not(:disabled):hover{background:var(--brand-dark)}
 .progress-card{
   background:var(--surface);border-radius:var(--radius);padding:20px;
   box-shadow:var(--shadow-md);margin-bottom:18px;display:none;
@@ -143,13 +133,11 @@ body{
 .progress-card.show{display:block;animation:fadeIn .3s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .progress-info{display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px}
-.progress-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
-.progress-fill{height:100%;background:var(--brand);border-radius:4px;transition:width .2s;width:0%}
-
+.progress-track{height:8px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--brand);border-radius:2px;transition:width .2s;width:0%}
 /* ===================== DASHBOARD ===================== */
 .dashboard{display:none}
 .dashboard.show{display:block}
-
 .global-filter-bar{
   display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;
   background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--brand-dark);
@@ -163,7 +151,6 @@ body{
 }
 .gf-pill select:focus{outline:none;border-color:var(--brand)}
 .gf-hint{font-size:11.5px;color:var(--text-soft);align-self:center}
-
 .stats-grid{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
   gap:14px;margin-bottom:20px;
@@ -180,7 +167,6 @@ body{
 .stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .stat-value{font-size:21px;font-weight:700;margin-top:6px;letter-spacing:-.5px;color:var(--text)}
 .stat-sub{font-size:11.5px;color:var(--text-soft);margin-top:4px}
-
 /* ===================== TABS ===================== */
 .tabs{
   display:flex;gap:2px;background:var(--surface);
@@ -191,7 +177,7 @@ body{
 .tab{
   flex:1;min-width:max-content;
   padding:10px 18px;border:none;background:transparent;
-  border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;
+  border-radius:2px;cursor:pointer;font-size:13px;font-weight:600;
   color:var(--text-muted);transition:background .1s;font-family:inherit;
   display:flex;align-items:center;gap:7px;justify-content:center;
 }
@@ -202,13 +188,11 @@ body{
 }
 .tab .badge{
   background:rgba(255,255,255,.25);color:inherit;
-  padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;
+  padding:1px 8px;border-radius:3px;font-size:11px;font-weight:700;
 }
 .tab:not(.active) .badge{background:var(--accent-soft);color:var(--brand-dark)}
-
 .tab-panel{display:none}
 .tab-panel.active{display:block;animation:fadeIn .25s}
-
 /* ===================== PANELS ===================== */
 .panel{
   background:var(--surface);border-radius:var(--radius-sm);
@@ -225,7 +209,6 @@ body{
 .panel-title{font-size:15px;font-weight:700;color:var(--brand-darker);display:flex;align-items:center;gap:8px}
 .panel-body{padding:18px 20px}
 .panel-actions{display:flex;gap:6px;align-items:center}
-
 /* ===================== FILTERS ===================== */
 .filter-bar{
   display:grid;
@@ -234,7 +217,7 @@ body{
 }
 .input,.select{
   width:100%;padding:9px 12px;border:1px solid var(--border);
-  border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface);
+  border-radius:3px;font-size:13px;font-family:inherit;background:var(--surface);
   transition:border-color .15s,box-shadow .15s;color:var(--text);
 }
 .input:focus,.select:focus{
@@ -244,7 +227,6 @@ body{
 .search-wrap{position:relative}
 .search-wrap input{padding-left:34px}
 .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-soft)}
-
 /* ===================== TABLE ===================== */
 .table-wrap{overflow-x:auto;border-radius:var(--radius)}
 table.data-table{
@@ -278,26 +260,24 @@ table.data-table .ctr{text-align:center}
 .row-toggle{
   background:none;border:none;cursor:pointer;color:var(--brand);
   font-size:14px;padding:0;width:22px;height:22px;
-  border-radius:4px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:2px;display:inline-flex;align-items:center;justify-content:center;
 }
 .row-toggle:hover{background:var(--accent)}
 .row-toggle.open{transform:rotate(90deg)}
-
 .badge-pill{
-  display:inline-block;padding:3px 9px;border-radius:12px;
+  display:inline-block;padding:3px 9px;border-radius:3px;
   font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
 }
 .k-1{background:#e4f6ee;color:#0a7d58}
-.k-2{background:#fdf3dd;color:#a17408}
-.k-3{background:#fdeadb;color:#b45f11}
-.k-4{background:#fbe3d9;color:#b4441c}
-.k-5{background:#fbe0e0;color:#b32e2e}
+.k-2{background:#f7f0d6;color:#8a6a12}
+.k-3{background:#fae2df;color:#a5342a}
+.k-4{background:#f6d6d2;color:#8f271e}
+.k-5{background:#f0c7c7;color:#6e1717}
 .prod-yes{background:var(--accent);color:var(--brand-darker)}
 .prod-no{background:#eef1f4;color:var(--text-soft)}
 .opp-badge{background:var(--brand);color:#fff}
 .opp-pill-wrap{display:grid;grid-template-columns:repeat(2,auto);gap:4px;justify-content:start}
 .opp-badge.zero{background:#eef1f4;color:var(--text-soft)}
-
 .detail-row{background:var(--surface-alt) !important}
 .detail-row td{padding:0 !important;border-bottom:2px solid var(--brand) !important}
 .detail-content{padding:20px 24px}
@@ -313,7 +293,6 @@ table.data-table .ctr{text-align:center}
   color:#fff;background:var(--brand-darker);margin:14px 0 8px;
   padding:6px 12px;display:block;border-radius:3px;
 }
-
 /* ===================== CUSTOMER HERO ===================== */
 .customer-hero{
   background:var(--brand-dark);
@@ -329,11 +308,9 @@ table.data-table .ctr{text-align:center}
 .customer-hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 20px;margin-top:14px;text-align:left}
 .customer-hero-grid .f-label{font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;text-align:left}
 .customer-hero-grid .f-value{font-size:13.5px;margin-top:2px;font-weight:600;text-align:left}
-
 .product-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-.pill{padding:4px 11px;border-radius:14px;font-size:11px;font-weight:700;background:rgba(255,255,255,.16)}
+.pill{padding:4px 11px;border-radius:3px;font-size:11px;font-weight:700;background:rgba(255,255,255,.16)}
 .pill.on{background:var(--accent);color:var(--brand-darker)}
-
 /* ===================== OPPORTUNITY CARDS ===================== */
 .opp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
 .opp-card{
@@ -347,7 +324,6 @@ table.data-table .ctr{text-align:center}
 .opp-card .opp-label{font-size:12px;font-weight:700;color:var(--text);margin-top:6px}
 .opp-card .opp-sub{font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.4}
 .opp-card.disabled{opacity:.45}
-
 .opp-detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-top:6px}
 .opp-entry-list{display:flex;flex-direction:column;gap:10px}
 .opp-entry{border:1px solid var(--border);border-left:4px solid var(--brand);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface-alt)}
@@ -357,22 +333,20 @@ table.data-table .ctr{text-align:center}
 .opp-detail-empty{padding:24px;text-align:center;color:var(--text-muted);font-style:italic}
 .rec-note{
   font-size:12px;color:var(--brand-dark);background:var(--accent-soft);border-left:3px solid var(--brand);
-  padding:10px 14px;border-radius:6px;margin-bottom:12px;line-height:1.6;text-align:left;
+  padding:10px 14px;border-radius:2px;margin-bottom:12px;line-height:1.6;text-align:left;
 }
-
 /* ===================== CHARTS ===================== */
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
 .chart-card{background:var(--surface);border-radius:var(--radius-sm);padding:18px;box-shadow:none;border:1px solid var(--border)}
 .chart-card h3{font-size:14px;margin-bottom:14px;color:var(--brand-darker);font-weight:700}
 .chart-canvas-wrap{position:relative;height:280px}
-
 /* ===================== EMPTY / TOAST ===================== */
 .empty{text-align:center;padding:40px 20px;color:var(--text-muted)}
 table.data-table td.empty{text-align:center}
 .toast-container{position:fixed;top:80px;right:24px;z-index:100;display:flex;flex-direction:column;gap:8px}
 .toast{
   background:var(--surface);border-left:4px solid var(--brand);
-  padding:12px 16px;border-radius:8px;box-shadow:var(--shadow-lg);
+  padding:12px 16px;border-radius:3px;box-shadow:var(--shadow-lg);
   display:flex;align-items:center;gap:10px;min-width:280px;max-width:400px;
   font-size:13px;animation:slideIn .25s;
 }
@@ -380,13 +354,11 @@ table.data-table td.empty{text-align:center}
 .toast.error{border-left-color:var(--danger)}
 .toast.warning{border-left-color:var(--warning)}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
-
 .info-banner{
   font-size:12px;color:var(--brand-dark);background:var(--accent-soft);border-left:3px solid var(--brand);
-  padding:10px 14px;border-radius:6px;margin-bottom:14px;line-height:1.6;
+  padding:10px 14px;border-radius:2px;margin-bottom:14px;line-height:1.6;
 }
-.diag-row{padding:6px 12px;background:var(--surface-alt);border-radius:4px;margin-bottom:4px;font-size:12.5px}
-
+.diag-row{padding:6px 12px;background:var(--surface-alt);border-radius:2px;margin-bottom:4px;font-size:12.5px}
 @media (max-width:768px){
   .container{padding:14px}
   .header-inner{flex-direction:column;align-items:flex-start;gap:10px}
@@ -411,7 +383,6 @@ table.data-table td.empty{text-align:center}
   .charts-grid{grid-template-columns:1fr}
   .chart-canvas-wrap{height:240px}
 }
-
 @media (max-width:480px){
   .brand-text h1{font-size:16px}
   .brand-text p{font-size:11px}
@@ -420,7 +391,6 @@ table.data-table td.empty{text-align:center}
   table.data-table{font-size:11.5px}
   .slot-card{padding:14px}
 }
-
 @media print{
   .app-header,.tabs,.upload-intro,.slot-grid,.upload-actions,.progress-card,.filter-bar,
   .panel-actions,.header-actions,.no-print,.row-toggle{display:none !important}
@@ -431,12 +401,11 @@ table.data-table td.empty{text-align:center}
 </style>
 </head>
 <body>
-
 <header class="app-header no-print">
   <div class="header-inner">
     <div class="brand">
       <div class="brand-text">
-        <h1>Customer Relationship Engine</h1>
+        <h1>Customer Relationship Dashboard</h1>
         <p>Model Pengelolaan Nasabah Berbasis Data</p>
       </div>
     </div>
@@ -446,11 +415,8 @@ table.data-table td.empty{text-align:center}
     </div>
   </div>
 </header>
-
 <div class="toast-container" id="toastContainer"></div>
-
 <main class="container">
-
   <!-- ===================== UPLOAD SECTION ===================== -->
   <section id="uploadSection">
    <div class="upload-wrap">
@@ -458,14 +424,11 @@ table.data-table td.empty{text-align:center}
       <h2>Customer Relationship Management — Model Pengelolaan Relationship Nasabah Eksisting Berbasis Data</h2>
       <p>Upload sumber data di bawah. <code>LW321 (Pinjaman)</code> wajib diupload — semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap One Page Customer View, Prioritas Pengelolaan, dan Relationship Opportunity yang dihasilkan.</p>
     </div>
-
     <div class="slot-grid" id="slotGrid"></div>
-
     <div class="upload-actions">
       <button class="btn btn-primary" id="btnProcess" disabled>Proses &amp; Bangun Dashboard</button>
       <span class="upload-hint" id="processHint">Upload LW321 terlebih dahulu untuk mengaktifkan tombol ini.</span>
     </div>
-
     <div class="progress-card" id="progressCard">
       <div class="progress-info">
         <span id="progressLabel">Memproses data...</span>
@@ -476,10 +439,8 @@ table.data-table td.empty{text-align:center}
     </div>
    </div>
   </section>
-
   <!-- ===================== DASHBOARD ===================== -->
   <section class="dashboard" id="dashboard">
-
     <div class="global-filter-bar no-print">
       <div class="gf-pill">
         <label>Regional Office</label>
@@ -504,14 +465,12 @@ table.data-table td.empty{text-align:center}
       <button class="btn btn-outline btn-sm" id="btnClearGlobalFilter">Reset Filter</button>
       <span class="gf-hint" id="gfHint"></span>
     </div>
-
     <div class="tabs no-print" role="tablist">
       <button class="tab active" data-panel="overview">Ringkasan</button>
       <button class="tab" data-panel="customers">Customer View<span class="badge" id="badgeCust">0</span></button>
       <button class="tab" data-panel="priority">Prioritas Pengelolaan<span class="badge" id="badgePriority">0</span></button>
       <button class="tab" data-panel="opportunity">Relationship Opportunity</button>
     </div>
-
     <!-- TAB: OVERVIEW -->
     <div class="tab-panel active" id="panel-overview">
       <p style="font-size:11.5px;color:var(--text-soft);margin:0 0 8px;font-style:italic">Catatan: Pinjaman &amp; Merchant mengikuti filter Regional/Cabang/Unit Kerja/RM di atas. Simpanan dihitung dari keseluruhan data (termasuk nasabah simpanan yang belum punya pinjaman), tidak ikut filter cabang.</p>
@@ -529,7 +488,6 @@ table.data-table td.empty{text-align:center}
           <div id="statsGridMerchant"></div>
         </div>
       </div>
-
       <div class="charts-grid">
         <div class="chart-card">
           <h3>Distribusi Kolektibilitas Terburuk per Nasabah</h3>
@@ -553,7 +511,6 @@ table.data-table td.empty{text-align:center}
         </div>
       </div>
     </div>
-
     <!-- TAB: CUSTOMERS -->
     <div class="tab-panel" id="panel-customers">
       <div class="panel">
@@ -603,7 +560,6 @@ table.data-table td.empty{text-align:center}
         </div>
       </div>
     </div>
-
     <!-- TAB: OPPORTUNITY -->
     <div class="tab-panel" id="panel-opportunity">
       <div class="panel">
@@ -638,7 +594,6 @@ table.data-table td.empty{text-align:center}
         </div>
       </div>
     </div>
-
     <!-- TAB: PRIORITY VISIT MATRIX -->
     <div class="tab-panel" id="panel-priority">
       <div class="panel">
@@ -652,7 +607,6 @@ table.data-table td.empty{text-align:center}
           <div class="info-banner">
             Deposit to Loan pakai threshold tetap (bukan persentil portfolio), jadi nasabah cukup dibagi 2: <strong>Perlu Kunjungan</strong> (Deposit to Loan &lt; 5%) dan <strong>Sehat</strong> (≥ 5%). Di dalam grup "Perlu Kunjungan", nasabah diurutkan dari <strong>OS (Baki Debet) terbesar</strong> — karena semakin besar OS dengan funding yang minim, semakin besar juga relationship gap yang perlu digarap duluan. Nasabah dengan OS di bawah Rp 1 juta tidak diikutkan di sini (rasio Deposit to Loan-nya jadi tidak bermakna kalau dibagi angka mendekati nol, dan eksposurnya memang terlalu kecil untuk jadi prioritas pengelolaan) — data mereka tetap utuh di tab lain.
           </div>
-
           <p style="font-size:11.5px;color:var(--text-soft);margin:-4px 0 8px;font-style:italic">Konteks portfolio nasabah pinjaman (LW321) sesuai filter — dasar dari perhitungan Deposit to Loan di bawah.</p>
           <p id="kpiDplCard" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px"></p>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
@@ -665,7 +619,6 @@ table.data-table td.empty{text-align:center}
               <div id="priorityStatsSimpanan"></div>
             </div>
           </div>
-
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
             <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
             <div class="panel-body">
@@ -681,15 +634,12 @@ table.data-table td.empty{text-align:center}
               </div>
             </div>
           </div>
-
           <div class="customer-hero" id="priorityBasisCard" style="padding:14px 20px;margin-bottom:18px">
             <div class="customer-hero-inner" id="priorityBasisContent"></div>
           </div>
-
           <div class="detail-section-title">Ringkasan: Perlu Kunjungan vs Sehat</div>
           <p class="upload-hint" style="margin:-4px 0 10px" id="priorityScopeNote"></p>
           <div class="opp-grid" id="priorityQuadGrid"></div>
-
           <div class="detail-section-title">Daftar Prioritas Pengelolaan</div>
           <div class="upload-hint" style="margin-bottom:8px" id="priorityTableHint"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
@@ -711,15 +661,11 @@ table.data-table td.empty{text-align:center}
         </div>
       </div>
     </div>
-
   </section>
-
 </main>
-
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-
 /* ===================================================================
    SLOT DEFINITIONS
    ================================================================= */
@@ -737,7 +683,6 @@ const SLOTS = [
   {key:'QRIS', title:'Merchant QRIS', required:false, ext:'.csv', match:['QRIS'],
    desc:'Data merchant QRIS, di-lookup berdasarkan CIF ke LW321.'},
 ];
-
 const State = {
   files:{},        // key -> {file, name}
   raw:{},          // key -> parsed array of row objects
@@ -754,7 +699,6 @@ const State = {
   charts:{},
   diag:{},
 };
-
 /* Returns the customer universe after applying the top global Kanwil/Kanca/Uker/RM filter */
 /* Memoized per filter-state + customer-set-version. Six or more render
    functions each call this once per filter change (renderStats,
@@ -778,7 +722,6 @@ function getScopedCustomers(){
   State._scopedCacheKey = key;
   return list;
 }
-
 /* Same idea as getScopedCustomers, but for the funding-only prospect list
    (see buildCustomers). Kanwil/Kanca/Uker now resolve via the uker-code
    lookup captured at build time. RM Pengelola Kredit is a special case: a
@@ -818,7 +761,6 @@ function findPairedRmFt(rmSmeValue){
   const pair = RM_PAIRING.find(p => upper.includes(p.rmSme.toUpperCase()));
   return pair ? pair.rmFt : null;
 }
-
 /* Reverse of findPairedRmFt — given an RM FT, find their paired RM SME. Used
    to widen Relationship Opportunity when filtering by RM FT: a customer with
    NO funding products at all has an empty rmFundingList and would otherwise
@@ -837,16 +779,21 @@ function findPairedRmSme(rmFtValue){
   const pair = RM_PAIRING.find(p => upper.includes(p.rmFt.toUpperCase()));
   return pair ? pair.rmSme : null;
 }
-
 /* Same scope as getScopedCustomers (Kanwil/Kanca/Uker/RM Pengelola Kredit),
    but widens the RM Pengelola FT filter specifically for opportunity
    detection: includes not just customers whose EXISTING funding accounts
    are managed by that RM FT, but also customers whose loan is managed by
-   that RM FT's paired RM SME partner — covering customers with zero funding
-   products, who would otherwise be invisible to their own paired RM FT.
-   Deliberately kept separate from getScopedCustomers (used everywhere else:
-   Ringkasan totals, Customer 360, Prioritas Pengelolaan) so this widening
-   only affects Relationship Opportunity, not portfolio-wide numbers. */
+   that RM FT's paired RM SME partner AND who have no existing funding
+   relationship at all — covering customers with zero funding products, who
+   would otherwise be invisible to their own paired RM FT. The zero-funding
+   check matters: without it, a customer whose Tabungan is already actively
+   managed by a completely different (unrelated) RM FT would still show up
+   as an "opportunity" for this RM FT just because their loan RM happens to
+   be the paired SME — misattributing a relationship someone else already
+   owns. Deliberately kept separate from getScopedCustomers (used
+   everywhere else: Ringkasan totals, Customer 360, Prioritas Pengelolaan)
+   so this widening only affects Relationship Opportunity, not
+   portfolio-wide numbers. */
 function getOppScopedCustomers(){
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
   let list = [...State.customers.values()];
@@ -858,12 +805,11 @@ function getOppScopedCustomers(){
     const pairedSme = findPairedRmSme(rmFt);
     list = list.filter(c =>
       (c.rmFundingList && c.rmFundingList.some(name => name.toUpperCase().includes(rmFt.toUpperCase()))) ||
-      (pairedSme && c.rmPengelola && c.rmPengelola.toUpperCase().includes(pairedSme.toUpperCase()))
+      (pairedSme && c.rmPengelola && c.rmPengelola.toUpperCase().includes(pairedSme.toUpperCase()) && (!c.rmFundingList || c.rmFundingList.length === 0))
     );
   }
   return list;
 }
-
 function getScopedFundingOnlyProspects(){
   let list = State.fundingOnlyProspects || [];
   const {kanwil, kanca, uker, rm, rmFt} = State.globalFilter;
@@ -881,7 +827,6 @@ function getScopedFundingOnlyProspects(){
   if(rmFt) list = list.filter(p => p.rmFundingList && p.rmFundingList.some(name => name.toUpperCase().includes(rmFt.toUpperCase())));
   return list;
 }
-
 /* ===================================================================
    UTILITIES
    ================================================================= */
@@ -916,9 +861,7 @@ const showToast = (msg, type='info') => {
   $('toastContainer').appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(20px)'; t.style.transition='all .25s'; setTimeout(()=>t.remove(),250); }, 3400);
 };
-
 const KOL_LABEL = {1:'Lancar',2:'Dalam Perhatian Khusus',3:'Kurang Lancar',4:'Diragukan',5:'Macet'};
-
 /* ===================================================================
    GENERIC TABLE PARSER (array-of-arrays -> array of objects)
    ================================================================= */
@@ -929,7 +872,6 @@ function findHeaderRow(aoa, requiredHeaders){
   }
   return -1;
 }
-
 function buildRows(aoa, headerRowIdx, fieldMap, keyField){
   const header = (aoa[headerRowIdx]||[]).map(normHeader);
   const colIdx = {};
@@ -958,7 +900,6 @@ function buildRows(aoa, headerRowIdx, fieldMap, keyField){
   }
   return out;
 }
-
 /* ===================================================================
    FIELD MAPS
    ================================================================= */
@@ -1002,7 +943,6 @@ const MAP_QRIS = {
   akumulasiTrxTotal:['AKUMULASI_TRX_TOTAL'], saldoPosisi:['SALDO_POSISI'],
   pn:['PN'], pnNama:['PN_PEMRAKASA'],
 };
-
 const PARSERS = {
   LW321: {req:['CIFNO','NOMOR_REKENING'], map:MAP_LW321, key:'cif'},
   DI319: {req:['CIFF NO','ACCOUNT NUMBER'], map:MAP_DI319, key:'cif'},
@@ -1011,7 +951,6 @@ const PARSERS = {
   EDC:   {req:['CIFNO','MID'], map:MAP_EDC, key:'cif'},
   QRIS:  {req:['CIF','MERCHANT_PAN'], map:MAP_QRIS, key:'cif'},
 };
-
 /* ===================================================================
    FILE READERS
    ================================================================= */
@@ -1046,7 +985,6 @@ function readDelimitedAsAOA(file, delimiter){
     reader.readAsArrayBuffer(file);
   });
 }
-
 async function parseFileForSlot(key, file){
   const cfg = PARSERS[key];
   let aoa;
@@ -1060,7 +998,6 @@ async function parseFileForSlot(key, file){
   const rows = buildRows(aoa, hdrIdx, cfg.map, cfg.key);
   return rows;
 }
-
 /* ===================================================================
    SLOT UI
    ================================================================= */
@@ -1078,7 +1015,6 @@ function renderSlots(){
       <input type="file" class="slot-input" id="slotInput_${s.key}" accept="${s.ext},.xlsx,.csv">
     </div>
   `).join('');
-
   SLOTS.forEach(s => {
     const card = $('slotCard_'+s.key);
     const input = $('slotInput_'+s.key);
@@ -1092,7 +1028,6 @@ function renderSlots(){
       if(e.dataTransfer.files[0]) assignFileToSlot(s.key, e.dataTransfer.files[0]);
     });
   });
-
   // A single global dropzone-like behavior on the whole grid: auto-detect by filename
   grid.addEventListener('dragover', e => e.preventDefault());
   grid.addEventListener('drop', e => {
@@ -1100,7 +1035,6 @@ function renderSlots(){
     e.preventDefault();
   });
 }
-
 function detectSlotFromFilename(name){
   const up = name.toUpperCase();
   for(const s of SLOTS){
@@ -1108,7 +1042,6 @@ function detectSlotFromFilename(name){
   }
   return null;
 }
-
 function assignFileToSlot(key, file){
   State.files[key] = file;
   const statusEl = $('slotStatus_'+key);
@@ -1128,7 +1061,6 @@ function assignFileToSlot(key, file){
     updateProcessButton();
   });
 }
-
 function updateProcessButton(){
   const ok = !!State.raw['LW321'] && State.raw['LW321'].length > 0;
   $('btnProcess').disabled = !ok;
@@ -1136,7 +1068,6 @@ function updateProcessButton(){
     ? 'Siap diproses. File lain bersifat opsional dan bisa ditambahkan kapan saja sebelum diproses.'
     : 'Upload LW321 terlebih dahulu untuk mengaktifkan tombol ini.';
 }
-
 /* Global drop zone: drop any number of files anywhere in the upload section, auto-detect slot */
 function setupGlobalDrop(){
   const zone = $('uploadSection');
@@ -1151,7 +1082,6 @@ function setupGlobalDrop(){
     });
   });
 }
-
 /* ===================================================================
    BUILD CUSTOMER 360 (join everything to LW321 by CIF)
    ================================================================= */
@@ -1166,11 +1096,9 @@ function namesLikelyMatch(a, b){
   if(shorter.length >= 8 && longer.startsWith(shorter)) return true;
   return false;
 }
-
 function buildCustomers(){
   const customers = new Map();
   const loanRows = State.raw['LW321'] || [];
-
   // 1. Base universe: every CIF present in LW321
   loanRows.forEach(row => {
     const cif = cleanStr(row.cif);
@@ -1180,6 +1108,7 @@ function buildCustomers(){
         cif, nama: cleanStr(row.namaDebitur),
         kanwil: cleanStr(row.kanwil), kanca: cleanStr(row.kanca),
         uker: cleanStr(row.uker) || cleanStr(row.kanca),
+        kodeUker: cleanStr(row.kodeUker),
         loans:[], tabungan:[], giro:[], deposito:[], edc:[], qris:[],
       });
     }
@@ -1190,7 +1119,6 @@ function buildCustomers(){
     row._tunggakan = parseNum(row.tunggakanPokok) + parseNum(row.tunggakanBunga) + parseNum(row.tunggakanPinalti);
     c.loans.push(row);
   });
-
   // 2. Tabungan (DI319) — exact CIF match. Rows for a CIF that isn't in the
   // loan-based universe are simply skipped from the main customer objects
   // (LW321/pinjaman is still the anchor for the whole app's customer
@@ -1245,7 +1173,6 @@ function buildCustomers(){
     pn = cleanPn(pn);
     if(pn && pn !== '-' && !p.rmFundingList.includes(pn)) p.rmFundingList.push(pn);
   }
-
   (State.raw['DI319']||[]).forEach(row => {
     diagCounts.DI319.total++;
     const cif = cleanStr(row.cif);
@@ -1260,7 +1187,6 @@ function buildCustomers(){
       addProspectRmFt(p, row.pnPengelola);
     }
   });
-
   // 3. Giro (DI321) — exact CIF match
   (State.raw['DI321']||[]).forEach(row => {
     diagCounts.DI321.total++;
@@ -1276,20 +1202,57 @@ function buildCustomers(){
       addProspectRmFt(p, row.pnPengelola);
     }
   });
-
-  // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs NAMA_DEBITUR
-  const nameIndex = new Map(); // normName -> cif (first match); handles prefix-truncated short names too
+  // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs
+  // NAMA_DEBITUR. Two upgrades over a naive "first match wins" approach:
+  //   (a) Names are grouped first (nameGroups: normalized name -> every
+  //       customer with that exact name), because a plain Map silently
+  //       keeps only the LAST customer inserted under a duplicate name —
+  //       with common Indonesian names, an earlier customer with the same
+  //       exact name would never be matchable at all.
+  //   (b) When a deposito row could plausibly belong to more than one
+  //       customer (duplicate exact name, or several fuzzy prefix matches),
+  //       CI324's own KODE UKER column is used to prefer whichever
+  //       candidate is actually at the same branch, instead of picking
+  //       whichever customer happens to be encountered first. This is a
+  //       real disambiguator, not a guess — branch agreement is a strong
+  //       signal two records describe the same person. It's still a
+  //       best-effort name match without a CIF, so fuzzy matches keep the
+  //       "nama mirip - cek manual" flag for manual verification.
+  const nameGroups = new Map(); // normName -> [{cif, kodeUker}]
   const nameList = [];
-  customers.forEach((c, cif) => { const n = normName(c.nama); nameIndex.set(n, cif); nameList.push([n, cif]); });
+  customers.forEach((c, cif) => {
+    const n = normName(c.nama);
+    if(!nameGroups.has(n)) nameGroups.set(n, []);
+    nameGroups.get(n).push({cif, kodeUker:c.kodeUker});
+    nameList.push([n, cif, c.kodeUker]);
+  });
+  function pickBestCandidate(candidates, rowKodeUker){
+    if(candidates.length === 1) return candidates[0].cif;
+    const branchMatch = rowKodeUker ? candidates.find(x => x.kodeUker && x.kodeUker === rowKodeUker) : null;
+    return (branchMatch || candidates[0]).cif;
+  }
   (State.raw['CI324']||[]).forEach(row => {
     diagCounts.CI324.total++;
     const rn = normName(row.shortName);
-    let cif = nameIndex.get(rn);
-    let fuzzy = false;
-    if(!cif){
-      for(const [n, c] of nameList){
-        if(namesLikelyMatch(rn, n)){ cif = c; fuzzy = true; break; }
+    const rowKodeUker = cleanStr(row.kodeUker);
+    let cif = null, fuzzy = false;
+    if(nameGroups.has(rn)){
+      cif = pickBestCandidate(nameGroups.get(rn), rowKodeUker);
+    } else {
+      // Fuzzy path: scan every distinct customer name, score each match by
+      // how much of the (shorter) name overlaps plus a large bonus for
+      // branch agreement, and keep the single best-scoring group — rather
+      // than stopping at the first name that happens to satisfy the
+      // prefix-match rule.
+      let bestScore = -1, bestCandidates = null;
+      for(const [n, , ] of nameList){
+        if(!namesLikelyMatch(rn, n)) continue;
+        const candidates = nameGroups.get(n);
+        let score = Math.min(rn.length, n.length);
+        if(rowKodeUker && candidates.some(x => x.kodeUker === rowKodeUker)) score += 1000;
+        if(score > bestScore){ bestScore = score; bestCandidates = candidates; }
       }
+      if(bestCandidates){ cif = pickBestCandidate(bestCandidates, rowKodeUker); fuzzy = true; }
     }
     if(cif){
       row._principal = parseNum(row.principal);
@@ -1299,7 +1262,6 @@ function buildCustomers(){
       if(fuzzy) diagCounts.CI324.fuzzy++;
     }
   });
-
   // 5. EDC merchant — exact CIFNO match
   (State.raw['EDC']||[]).forEach(row => {
     diagCounts.EDC.total++;
@@ -1315,7 +1277,6 @@ function buildCustomers(){
       addProspectRmFt(p, combinePn(row.pnUser, row.namaUser));
     }
   });
-
   // 6. QRIS merchant — exact CIF match
   (State.raw['QRIS']||[]).forEach(row => {
     diagCounts.QRIS.total++;
@@ -1331,9 +1292,7 @@ function buildCustomers(){
       addProspectRmFt(p, combinePn(row.pn, row.pnNama));
     }
   });
-
   State.fundingOnlyProspects = [...prospectMap.values()].sort((a,b) => (b.latestOpenDt||'').localeCompare(a.latestOpenDt||''));
-
   // 7. Compute aggregates & opportunity flags per customer
   customers.forEach(c => {
     c.totalPlafon = c.loans.reduce((s,l)=>s+l._plafon,0);
@@ -1359,7 +1318,6 @@ function buildCustomers(){
       ...c.edc.map(m => combinePn(m.pnUser, m.namaUser)),
       ...c.qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
-
     const opp = [];
     if(c.tabungan.length===0) opp.push('noTabungan');
     if(c.giro.length===0) opp.push('noGiro');
@@ -1384,11 +1342,9 @@ function buildCustomers(){
     c.opportunities = opp;
     c.oppCount = opp.length;
   });
-
   State.customers = customers;
   State.customersVersion = (State.customersVersion||0) + 1;
   State.diag = diagCounts;
-
   // Data-driven RM SME ↔ RM FT pairing — instead of relying only on a
   // hardcoded list (which only covers RMs from one specific SK document and
   // silently produces nothing for anyone else, e.g. Bima/Nuhisa/Sigit/Afun
@@ -1418,7 +1374,6 @@ function buildCustomers(){
   });
   State.inferredRmPairing = inferredPairing;
 }
-
 /* ===================================================================
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
@@ -1431,7 +1386,6 @@ const OPP_DEFS = {
   noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
   kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
-
 function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
@@ -1441,7 +1395,6 @@ function computeOppCategories(){
   cats.pinjaman = buildPinjamanOppList();
   State.oppCategories = cats;
 }
-
 /* "Pinjaman" (RM SME angle) — "sedang tidak memiliki fasilitas kredit", not
    "belum pernah punya": merges two different-shaped sources into one common
    display shape so selectOpp doesn't need to know which source an entry
@@ -1480,7 +1433,6 @@ function buildPinjamanOppList(){
   entries.sort((a,b) => (b.openDt||'').localeCompare(a.openDt||''));
   return entries;
 }
-
 /* ===================================================================
    GLOBAL FILTER BAR (Regional Office / Branch Office / Unit Kerja)
    ================================================================= */
@@ -1534,7 +1486,6 @@ function applyGlobalFilter(){
   renderOppGrid();
   renderCharts();
 }
-
 /* Pre-selects the filter to a specific branch on first load so the dashboard
    opens already scoped to the user's own unit kerja, instead of "Semua".
    Falls back silently (stays on "Semua") if no match is found in the data. */
@@ -1554,7 +1505,6 @@ function applyDefaultRegionSelection(kanwilHint, kancaHint, ukerHint){
     if(ukerOpt) $('gfUker').value = ukerOpt.value;
   }
 }
-
 /* ===================================================================
    RENDER: STATS
    ================================================================= */
@@ -1567,7 +1517,6 @@ function applyDefaultRegionSelection(kanwilHint, kancaHint, ukerHint){
 function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   const totalPlafon = custs.reduce((s,c)=>s+c.totalPlafon,0);
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
-
   const agg = {tabungan:{sum:0,count:0}, giro:{sum:0,count:0}, deposito:{sum:0,count:0}, edc:{sum:0,count:0,trx:0}, qris:{sum:0,count:0,trx:0}};
   let custSimpananCount = 0, custMerchantCount = 0;
   custs.forEach(c => {
@@ -1579,7 +1528,6 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
     c.edc.forEach(m => { agg.edc.sum += m._volume||0; agg.edc.trx += m._trx||0; agg.edc.count++; });
     c.qris.forEach(m => { agg.qris.sum += m._volume||0; agg.qris.trx += m._trx||0; agg.qris.count++; });
   });
-
   let totalNasabahSimpanan = custSimpananCount;
   let totalNasabahMerchantCombined = custMerchantCount;
   if(combineProspects){
@@ -1594,7 +1542,6 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
     totalNasabahMerchantCombined += prospects.filter(p => p.edc || p.qris).length;
   }
   const totalFunding = agg.tabungan.sum + agg.giro.sum + agg.deposito.sum;
-
   const pinjamanCards = [
     {label:'Total Nasabah Pinjaman', value:custs.length, sub:'existing customer dari LW321', cls:'accent'},
     {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${fmtNum(custs.reduce((s,c)=>s+c.loans.length,0))} fasilitas kredit dari ${fmtNum(custs.length)} nasabah — satu nasabah bisa punya lebih dari satu fasilitas`, cls:''},
@@ -1619,12 +1566,10 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
       </tbody>
     </table></div>
   `;
-
   if(ids.pinjaman) $(ids.pinjaman).innerHTML = renderTable(pinjamanCards);
   if(ids.simpanan) $(ids.simpanan).innerHTML = renderTable(simpananCards);
   if(ids.merchant) $(ids.merchant).innerHTML = renderTable(merchantCards);
 }
-
 /* KPI target per "Ketentuan Ekspansi Kredit Segmen SME Tahun 2026" — Rasio
    DPK Debitur Kelolaan to Loan SME target = 18% of Baki Debet. Rendered as a
    progress bar (capped visually at 100% even on overachievement, with the
@@ -1636,14 +1581,11 @@ function renderKpiDplCard(custs){
   const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
   $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan = ${actualPct.toFixed(1)}%`;
 }
-
 function renderStats(){
   const custs = getScopedCustomers();
   $('badgeCust').textContent = custs.length;
   renderPinjamanSimpananMerchantStats(custs, {pinjaman:'statsGridPinjaman', simpanan:'statsGridSimpanan', merchant:'statsGridMerchant'}, true);
 }
-
-
 /* ===================================================================
    RENDER: CUSTOMER TABLE
    ================================================================= */
@@ -1680,12 +1622,10 @@ function applyCustFilters(){
   State.filteredCust = list;
   renderCustTable();
 }
-
 function productPills(c){
   const defs = [['T','Tabungan',c.tabungan.length>0],['G','Giro',c.giro.length>0],['D','Deposito',c.deposito.length>0],['E','EDC',c.edc.length>0],['Q','QRIS',c.qris.length>0]];
   return defs.map(([code,label,on]) => `<span class="badge-pill ${on?'prod-yes':'prod-no'}" title="${label}">${code}</span>`).join(' ');
 }
-
 /* Renders one small badge per detected opportunity type, each with a tooltip
    explaining what it means — replaces a bare count so the meaning is self-evident.
    Wrapped in a fixed 2-column grid so a customer with many opportunities never
@@ -1713,7 +1653,6 @@ function oppPills(c){
   const html = badges.map(b => `<span class="badge-pill opp-badge" title="${escapeHtml(b.title)}">${escapeHtml(b.tag)}</span>`).join('');
   return `<div class="opp-pill-wrap">${html}</div>`;
 }
-
 /* Only ever renders a capped page of rows at once, not the entire filtered
    set — for a portfolio with 1,000+ customers, building and inserting one
    giant table's worth of HTML on every filter change is genuinely slow (the
@@ -1748,13 +1687,11 @@ function renderCustTable(){
   });
   body.innerHTML = rows.join('');
 }
-
 window.toggleCustRow = function(cif){
   if(State.expandedRows.has(cif)) State.expandedRows.delete(cif);
   else State.expandedRows.add(cif);
   renderCustTable();
 };
-
 /* Jumps to Customer View (One Page Customer View) from anywhere in the app,
    already searched down to and expanded on one specific customer — used by
    the "Lihat Detail" links on Prioritas Pengelolaan rows and Relationship
@@ -1774,7 +1711,6 @@ function goToCustomerDetail(cif){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 window.goToCustomerDetail = goToCustomerDetail;
-
 /* ===================================================================
    RENDER: CUSTOMER DETAIL (Single Customer View)
    ================================================================= */
@@ -1794,16 +1730,14 @@ window.goToCustomerDetail = goToCustomerDetail;
 function renderOpportunityRecommendations(c){
   const kol = c.worstKol;
   const notes = [];
-
   if(kol >= 3){
     const kolLabel = KOL_LABEL[kol] || 'bermasalah';
     notes.push(`<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f"><strong>Recovery (Kol ${kol} - ${escapeHtml(kolLabel)}):</strong> Kolektibilitas sudah bermasalah — fokus utamanya penanganan kredit bermasalah (monitoring intensif, negosiasi restrukturisasi, atau proses eksekusi jaminan), bukan cross-sell produk baru.</div>`);
   } else if(kol === 2){
-    notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
+    notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#f7f0d6;color:#8a6a12"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
   } else if(kol === 1 && c.priorityQuad === 'needsVisit'){
     notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan masih rendah (&lt;5%, lihat tab Prioritas Pengelolaan) — peluang kuat untuk kunjungan bersama RM SME &amp; RM FT guna memperdalam relationship funding.</div>`);
   }
-
   // Product cross-sell opportunities are only pushed for accounts that are
   // still in reasonably good standing (Kol 1–2) — see note above.
   if(kol < 3){
@@ -1811,13 +1745,11 @@ function renderOpportunityRecommendations(c){
       notes.push(`<div class="rec-note"><strong>${OPP_DEFS[k].label}:</strong> ${OPP_DEFS[k].rec}</div>`);
     });
   }
-
   if(!notes.length){
     notes.push('<div class="rec-note">Tidak ada peluang atau tindakan khusus yang terdeteksi otomatis untuk nasabah ini pada periode data saat ini.</div>');
   }
   return notes.join('');
 }
-
 function renderCustomerDetail(c){
   const loansRows = c.loans.map(l => `
     <tr>
@@ -1832,26 +1764,20 @@ function renderCustomerDetail(c){
       <td>${escapeHtml(cleanPn(l.pnPengelola))}</td>
     </tr>
   `).join('');
-
   const tabunganRows = c.tabungan.map(t => `
     <tr><td>${escapeHtml(t.accountNumber)}</td><td>${escapeHtml(t.prodCode)}</td><td class="num">${fmtRupiah(t._balance)}</td><td class="ctr">${escapeHtml(t.openDt)}</td><td>${escapeHtml(cleanPn(t.pnPengelola))}</td></tr>
   `).join('') || '<tr><td colspan="5" class="empty">Belum ada rekening tabungan.</td></tr>';
-
   const giroRows = c.giro.map(t => `
     <tr><td>${escapeHtml(t.accountNumber)}</td><td>${escapeHtml(t.productCode)}</td><td class="num">${fmtRupiah(t._balance)}</td><td class="ctr">${escapeHtml(t.openDate)}</td><td>${escapeHtml(cleanPn(t.pnPengelola))}</td></tr>
   `).join('') || '<tr><td colspan="5" class="empty">Belum ada rekening giro.</td></tr>';
-
   const depositoRows = c.deposito.map(t => `
     <tr><td>${escapeHtml(t.acctno)}</td><td class="num">${fmtRupiah(t._principal)}</td><td>${escapeHtml(t.intRate)}%</td><td>${escapeHtml(t.matDt)}</td><td>${escapeHtml(cleanPn(t.pnRmDana))}</td><td>${t._matchType==='name-fuzzy' ? '<span class="badge-pill k-3">nama mirip - cek manual</span>' : '<span class="badge-pill prod-yes">nama sama</span>'}</td></tr>
   `).join('') || '<tr><td colspan="6" class="empty">Belum ada rekening deposito.</td></tr>';
-
   const merchantRows = [
     ...c.edc.map(m => `<tr><td>EDC</td><td>${escapeHtml(m.namaMerchant)}</td><td>${escapeHtml(m.mid)}</td><td class="num ctr">${fmtNum(m._trx)}</td><td class="num">${fmtRupiah(m._volume)}</td><td class="ctr">${escapeHtml(combinePn(m.pnUser, m.namaUser))}</td></tr>`),
     ...c.qris.map(m => `<tr><td>QRIS</td><td>${escapeHtml(m.namaMerchant)}</td><td>-</td><td class="num ctr">${fmtNum(m._trx)}</td><td class="num">${fmtRupiah(m._volume)}</td><td class="ctr">${escapeHtml(combinePn(m.pn, m.pnNama))}</td></tr>`),
   ].join('') || '<tr><td colspan="6" class="empty">Belum ada merchant EDC/QRIS.</td></tr>';
-
   const oppHtml = renderOpportunityRecommendations(c);
-
   return `
     <div class="detail-content">
       <div class="customer-hero" style="margin-bottom:14px">
@@ -1875,28 +1801,21 @@ function renderCustomerDetail(c){
           </div>
         </div>
       </div>
-
       <div class="detail-section-title">Business Opportunity — Rekomendasi</div>
       ${oppHtml}
-
       <div class="detail-section-title">Fasilitas Kredit (${c.loans.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Jenis</th><th>Kol</th><th class="num">Plafon</th><th class="num">Baki Debet</th><th class="num">Tunggakan</th><th class="ctr">Rate</th><th>Jatuh Tempo</th><th>RM Pengelola Kredit</th></tr></thead><tbody>${loansRows}</tbody></table></div>
-
       <div class="detail-section-title">Tabungan (${c.tabungan.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Produk</th><th class="num">Saldo</th><th class="ctr">Tgl Buka</th><th>RM Pengelola FT</th></tr></thead><tbody>${tabunganRows}</tbody></table></div>
-
       <div class="detail-section-title">Giro (${c.giro.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Produk</th><th class="num">Saldo</th><th class="ctr">Tgl Buka</th><th>RM Pengelola FT</th></tr></thead><tbody>${giroRows}</tbody></table></div>
-
       <div class="detail-section-title">Deposito (${c.deposito.length}) — dicocokkan berdasarkan nama (tanpa CIF)</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th class="num">Nominal</th><th>Rate</th><th>Jatuh Tempo</th><th>RM Pengelola FT</th><th>Kualitas Match</th></tr></thead><tbody>${depositoRows}</tbody></table></div>
-
       <div class="detail-section-title">Merchant EDC / QRIS (${c.edc.length + c.qris.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Tipe</th><th>Nama Merchant</th><th>MID</th><th class="num ctr">Transaksi</th><th class="num">Volume</th><th class="ctr">RM Pengelola FT</th></tr></thead><tbody>${merchantRows}</tbody></table></div>
     </div>
   `;
 }
-
 /* ===================================================================
    RENDER: OPPORTUNITY TAB
    ================================================================= */
@@ -1920,7 +1839,6 @@ function renderOppGrid(){
   if(firstNonEmpty) selectOpp(firstNonEmpty);
   else $('oppDetail').innerHTML = '<div class="opp-detail-empty">Tidak ada peluang bisnis yang terdeteksi dari data saat ini.</div>';
 }
-
 /* Badan-usaha name heuristic (PT/CV/UD/etc. prefix) — used to add a "tap-in
    via the owner" note for cross-sell opportunities on business entities,
    since a company itself may not need a personal product, but its owner
@@ -1928,7 +1846,6 @@ function renderOppGrid(){
 function looksLikeBadanUsaha(nama){
   return /^(PT|CV|UD|PD|KOPERASI|FIRMA|YAYASAN|KSP|BUMDES)\b/i.test(cleanStr(nama));
 }
-
 /* Builds one contextual, per-customer insight for a Relationship Opportunity entry —
    instead of a flat "belum punya X" for everyone in the category, it names
    what the customer DOES already have at BRI (so the RM understands there's
@@ -1944,18 +1861,15 @@ function buildOppInsightNote(c, key){
   }
   if(key === 'kolWatch'){
     // Kol ≥3 already handled above, so this only fires for Kol 2 entries here.
-    return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
+    return `<div class="rec-note" style="border-left-color:var(--warning);background:#f7f0d6;color:#8a6a12;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
   }
-
   const owned = [];
   if(c.tabungan.length) owned.push('Tabungan');
   if(c.giro.length) owned.push('Giro');
   if(c.deposito.length) owned.push('Deposito');
   if(c.edc.length) owned.push('EDC');
   if(c.qris.length) owned.push('QRIS');
-
   const missingLabel = {noTabungan:'Tabungan', noGiro:'Giro', noDeposito:'Deposito', noMerchantEdc:'EDC', noMerchantQris:'QRIS'}[key];
-
   let msg;
   if(owned.length){
     const kolNote = c.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
@@ -1968,7 +1882,6 @@ function buildOppInsightNote(c, key){
   }
   return `<div class="rec-note" style="margin-top:8px">${msg}</div>`;
 }
-
 /* "Pinjaman" (RM SME angle) has a different data shape (funding-only
    prospects: cif/nama/jenis/balance/openDt/ukerCode) than every other
    category (full Customer objects) — special-cased here, including a
@@ -1983,12 +1896,10 @@ function selectOpp(k, resetPinjamanPage=true){
   const def = OPP_DEFS[k];
   const q = ($('oppSearch').value || '').toLowerCase().trim();
   let list = State.oppCategories[k];
-
   // The Tabungan/Giro filter only makes sense for the Pinjaman category (the
   // other categories aren't split by product type this way) — only shown
   // when that category is active.
   $('oppPinjamanFilterWrap').style.display = k === 'pinjaman' ? 'flex' : 'none';
-
   if(k === 'pinjaman'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
@@ -2027,7 +1938,6 @@ function selectOpp(k, resetPinjamanPage=true){
     `;
     return;
   }
-
   if(q) list = list.filter(c => `${c.nama} ${c.cif}`.toLowerCase().includes(q));
   const entries = list.slice().sort((a,b)=>b.totalBakiDebet-a.totalBakiDebet).map(c => `
     <div class="opp-entry">
@@ -2059,7 +1969,6 @@ window.growPinjamanOppPage = growPinjamanOppPage;
 $('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp, true); });
 $('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
 $('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', false); });
-
 /* ===================================================================
    PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
    ---------------------------------------------------------------
@@ -2074,11 +1983,10 @@ $('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp
         second classification cut-off.
    ================================================================= */
 const QUAD_DEFS = {
-  needsVisit: {label:'Perlu Kunjungan', color:'#d64545', badgeCls:'k-5', sub:'Deposit to Loan di bawah threshold — funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
+  needsVisit: {label:'Perlu Kunjungan', color:'#a52820', badgeCls:'k-5', sub:'Deposit to Loan di bawah threshold — funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
   sehat:      {label:'Sehat',           color:'#0a9d6e', badgeCls:'k-1', sub:'Deposit to Loan sudah di atas threshold — funding relationship sudah sehat. Fokus maintain & deepen relationship, bukan prioritas kunjungan utama.'},
 };
-const QUAD_COLOR = {needsVisit:'#d64545', sehat:'#0a9d6e'};
-
+const QUAD_COLOR = {needsVisit:'#a52820', sehat:'#0a9d6e'};
 function percentile(sortedArr, p){
   if(!sortedArr.length) return 0;
   const idx = (p/100) * (sortedArr.length-1);
@@ -2086,12 +1994,10 @@ function percentile(sortedArr, p){
   if(lo === hi) return sortedArr[lo];
   return sortedArr[lo] + (sortedArr[hi]-sortedArr[lo]) * (idx-lo);
 }
-
 function computePriorityData(){
   // Clear any stale tags from a previous (differently-scoped) computation first,
   // so a customer who falls out of scope doesn't keep an old status label.
   State.customers.forEach(c => { c.priorityQuad = null; });
-
   // Excludes near-zero OS (not just literally zero) — a nearly-paid-off loan
   // (e.g. Rp 9,456 outstanding) makes Deposit to Loan explode toward infinity
   // once you divide by a denominator that small, and such a customer isn't a
@@ -2111,7 +2017,6 @@ function computePriorityData(){
   const usingOverride = ov.cov != null && !isNaN(ov.cov);
   const distOS = {min:osArr[0]||0, p25:percentile(osArr,25), median:percentile(osArr,50), p75:percentile(osArr,75), max:osArr[osArr.length-1]||0};
   const distCov = {min:covArr[0]||0, p25:percentile(covArr,25), median:percentile(covArr,50), p75:percentile(covArr,75), max:covArr[covArr.length-1]||0};
-
   const list = custs.map(c => {
     const cov = c.fundingCoverage ?? 0;
     const quad = cov < p25Cov ? 'needsVisit' : 'sehat';
@@ -2124,15 +2029,10 @@ function computePriorityData(){
     if(a.quad !== b.quad) return a.quad === 'needsVisit' ? -1 : 1;
     return b.c.totalBakiDebet - a.c.totalBakiDebet;
   });
-
   const quadCounts = {needsVisit:0, sehat:0};
   list.forEach(r => quadCounts[r.quad]++);
-
-  State.priority = {list, p25Cov, distOS, distCov, quadCounts, usingOverride};
+  State.priority = {list, p25Cov, distOS, distCov, quadCounts, usingOverride, excludedCount, minOs:MIN_OS_FOR_PRIORITY, scopedCount:scoped.length};
 }
-
-
-
 function renderPriorityQuadGrid(){
   const {quadCounts} = State.priority;
   $('priorityQuadGrid').innerHTML = Object.keys(QUAD_DEFS).map(q => {
@@ -2148,15 +2048,12 @@ function renderPriorityQuadGrid(){
     `;
   }).join('');
 }
-
 function selectPriorityQuad(q){
   State.activePriorityQuad = (State.activePriorityQuad === q) ? null : q;
   document.querySelectorAll('#priorityQuadGrid .opp-card').forEach(el => el.classList.toggle('active', el.dataset.quad === State.activePriorityQuad));
   renderPriorityTable();
 }
 window.selectPriorityQuad = selectPriorityQuad;
-
-
 function renderPriorityTable(){
   const q = ($('prioritySearch').value || '').toLowerCase().trim();
   let rows = State.priority.list;
@@ -2178,9 +2075,6 @@ function renderPriorityTable(){
     </tr>
   `).join('') || '<tr><td colspan="6" class="empty">Tidak ada nasabah yang cocok.</td></tr>';
 }
-
-
-
 function renderPriorityTab(){
   computePriorityData();
   renderPriorityBasisCard();
@@ -2190,13 +2084,14 @@ function renderPriorityTab(){
   $('badgePriority').textContent = State.priority.quadCounts.needsVisit;
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
   renderKpiDplCard(getScopedCustomers());
-
   const p = State.priority;
   $('priorityTableHint').textContent =
     `${QUAD_DEFS.needsVisit.label} = ${p.quadCounts.needsVisit} nasabah, ${QUAD_DEFS.sehat.label} = ${p.quadCounts.sehat} nasabah. ` +
     `Daftar di bawah diurutkan: "${QUAD_DEFS.needsVisit.label}" duluan (dari OS terbesar), baru "${QUAD_DEFS.sehat.label}".`;
+  $('priorityScopeNote').textContent = p.excludedCount > 0
+    ? `${fmtNum(p.excludedCount)} dari ${fmtNum(p.scopedCount)} nasabah pinjaman (sesuai filter di atas) tidak diikutkan di sini karena Baki Debet di bawah ${fmtRupiah(p.minOs)} — data mereka tetap utuh di tab lain.`
+    : `Semua ${fmtNum(p.scopedCount)} nasabah pinjaman dalam cakupan filter saat ini diikutkan (tidak ada yang di bawah ambang Baki Debet minimum ${fmtRupiah(p.minOs)}).`;
 }
-
 /* Makes explicit whether the Deposit to Loan threshold is currently the
    default fixed 5% or a manual override. */
 function renderPriorityBasisCard(){
@@ -2229,7 +2124,6 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
   renderPriorityTab();
   showToast('Kembali ke threshold default Deposit to Loan (5%).', 'info');
 });
-
 /* ===================================================================
    CHARTS
    ================================================================= */
@@ -2238,7 +2132,6 @@ function renderCharts(){
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
   const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
-
   const barValueLabelPlugin = {
     id: 'barValueLabelPlugin',
     afterDatasetsDraw(chart){
@@ -2257,16 +2150,14 @@ function renderCharts(){
       });
     }
   };
-
   const kolCount = {1:0,2:0,3:0,4:0,5:0};
   custs.forEach(c => kolCount[c.worstKol] = (kolCount[c.worstKol]||0)+1);
   State.charts.kol = new Chart($('chartKol'), {
     type:'bar',
-    data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#d69a12','#e07b1f','#d6592f','#d64545'], borderRadius:6}]},
+    data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#b8860b','#c0392b','#a52820','#7a1a1a'], borderRadius:2}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
-
   const prodCount = {Tabungan:0,Giro:0,Deposito:0,EDC:0,QRIS:0};
   custs.forEach(c => {
     if(c.tabungan.length) prodCount.Tabungan++;
@@ -2291,21 +2182,18 @@ function renderCharts(){
     data:{labels:Object.keys(prodCount), datasets:[{data:Object.values(prodCount), backgroundColor:CBLUE, borderWidth:2, borderColor:'#fff'}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:11}}}}}
   });
-
   const topDebet = custs.slice().sort((a,b)=>b.totalBakiDebet-a.totalBakiDebet).slice(0,10);
   State.charts.topDebet = new Chart($('chartTopDebet'), {
     type:'bar',
     data:{labels:topDebet.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Baki Debet', data:topDebet.map(c=>c.totalBakiDebet), backgroundColor:'#0856c3', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
   });
-
   const topFunding = custs.slice().sort((a,b)=>b.totalFunding-a.totalFunding).slice(0,10);
   State.charts.topFunding = new Chart($('chartTopFunding'), {
     type:'bar',
     data:{labels:topFunding.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Total Funding', data:topFunding.map(c=>c.totalFunding), backgroundColor:'#2e78d6', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
   });
-
   // Deposit to Loan bucketed by range, so it's obvious at a glance how many
   // customers have little-to-no funding relationship vs. a well-covered one.
   // 0–10% split into 0–5%/5–10% to line up with the <5%/≥5% threshold above.
@@ -2321,12 +2209,11 @@ function renderCharts(){
   });
   State.charts.coverageDist = new Chart($('chartCoverageDist'), {
     type:'bar',
-    data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#d64545','#e0824a','#e07b1f','#d69a12','#2e78d6','#0a9d6e'], borderRadius:4}]},
+    data:{labels:Object.keys(covBuckets), datasets:[{label:'Jumlah Nasabah', data:Object.values(covBuckets), backgroundColor:['#7a1a1a','#a52820','#c0392b','#b8860b','#2e78d6','#0a9d6e'], borderRadius:2}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
 }
-
 /* ===================================================================
    EXPORT TO EXCEL
    ================================================================= */
@@ -2335,7 +2222,6 @@ function exportToExcel(){
     showToast('Menyiapkan file Excel...', 'info');
     const wb = XLSX.utils.book_new();
     const custs = getScopedCustomers();
-
     const summaryRows = custs.map(c => [
       c.nama, c.cif, c.uker, c.worstKol, c.loans.length, c.totalPlafon, c.totalBakiDebet, c.totalTunggakan,
       c.tabungan.length, c.totalTabungan, c.giro.length, c.totalGiro, c.deposito.length, c.totalDeposito,
@@ -2348,13 +2234,11 @@ function exportToExcel(){
     const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryRows]);
     wsSummary['!cols'] = summaryHeader.map(h=>({wch:Math.max(14,h.length+2)}));
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Customer 360 Summary');
-
     // Excel sheet names can't contain : \ / ? * [ ] and must be ≤31 chars —
     // "Ekosistem EDC/QRIS" has a "/" in it, which silently produces a file
     // Excel has to "repair" on open (this was the actual reason the export
     // wasn't reliably usable, not a missing-feature issue).
     const sanitizeSheetName = name => name.replace(/[:\\\/?*\[\]]/g, '-').slice(0, 31);
-
     Object.keys(OPP_DEFS).forEach(k => {
       const list = State.oppCategories[k] || [];
       // "Pinjaman" (RM SME) draws from the unified pinjaman-opportunity list
@@ -2371,7 +2255,6 @@ function exportToExcel(){
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(OPP_DEFS[k].label));
     });
-
     const filename = `Customer360_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('File Excel berhasil diunduh!', 'success');
@@ -2380,7 +2263,6 @@ function exportToExcel(){
     showToast('Gagal mengekspor Excel: ' + e.message, 'error');
   }
 }
-
 /* ===================================================================
    STATIC DUMMY DATA (currently UNUSED — kept dormant for reference)
    ---------------------------------------------------------------
@@ -2416,7 +2298,6 @@ const DUMMY_RM = [
   '00427710 - MUTIARA SHAFA NURAINI','00512233 - RIZAL FEBRIAN','00609981 - CITRA AYU LESTARI',
 ];
 const DUMMY_KOLS = [1,1,1,2,1,1,1,3,1,1,2,1,1,1,4,1,2,1,1,1,5,1,1,2,1,1,3,1,1,1,2,1];
-
 function makeDummyLoan(i, kol, plafon, baki, rm){
   return {
     noRekening: '0435010000' + String(70000+i).padStart(6,'0'),
@@ -2443,7 +2324,6 @@ function makeDummyEdc(i, volume, trx, pnUser, namaUser){
 function makeDummyQris(i, volume, trx, pn, pnNama){
   return {namaMerchant:`TOKO ${['BAROKAH','SEJAHTERA','MAKMUR','SENTOSA','JAYA'][i%5]} ${i+1}`, _trx:trx, _volume:volume, pn, pnNama};
 }
-
 function generateDummyCustomers(){
   const list = [];
   const N = DUMMY_NAMES.length;
@@ -2457,12 +2337,10 @@ function generateDummyCustomers(){
     const baki = Math.round(plafon * (0.35 + ((i*17)%50)/100));
     const rm = DUMMY_RM[i % DUMMY_RM.length];
     const loan = makeDummyLoan(i, kol, plafon, baki, rm);
-
     const hasTabungan = i % 5 !== 0;
     const hasGiro = i % 3 === 0;
     const hasMerchant = i % 4 === 0;
     const hasDeposito = i % 7 === 0;
-
     const tabungan = hasTabungan ? [makeDummyTabungan(i, Math.round(baki*(0.05+(i%4)*0.03)), rm)] : [];
     const giro = hasGiro ? [makeDummyGiro(i, Math.round(baki*(0.1+(i%3)*0.05)), rm)] : [];
     const deposito = hasDeposito ? [makeDummyDeposito(i, Math.round(baki*0.2), rm, i%2===0?'name-exact':'name-fuzzy')] : [];
@@ -2471,7 +2349,6 @@ function generateDummyCustomers(){
       if(i%8===0) edc.push(makeDummyEdc(i, Math.round(plafon*0.05), 40+i, '00'+(400000+i), 'STAFF EDC '+(i+1)));
       else qris.push(makeDummyQris(i, Math.round(plafon*0.03), 20+i, ''+(370000+i), 'STAFF QRIS '+(i+1)));
     }
-
     const c = {cif, nama, kanwil:region.kanwil, kanca:region.kanca, uker, loans:[loan], tabungan, giro, deposito, edc, qris};
     c.totalPlafon = plafon;
     c.totalBakiDebet = baki;
@@ -2493,7 +2370,6 @@ function generateDummyCustomers(){
       ...edc.map(m => combinePn(m.pnUser, m.namaUser)),
       ...qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
-
     const opp = [];
     if(c.tabungan.length===0) opp.push('noTabungan');
     if(c.giro.length===0) opp.push('noGiro');
@@ -2503,12 +2379,10 @@ function generateDummyCustomers(){
     if(c.worstKol>=2) opp.push('kolWatch');
     c.opportunities = opp;
     c.oppCount = opp.length;
-
     list.push(c);
   }
   return list;
 }
-
 function loadDummyDashboard(){
   State.customers = new Map(generateDummyCustomers().map(c => [c.cif, c]));
   State.customersVersion = (State.customersVersion||0) + 1;
@@ -2518,7 +2392,6 @@ function loadDummyDashboard(){
   $('dashboard').classList.add('show');
   $('headerActions').style.display = 'flex';
 }
-
 /* ===================================================================
    MAIN PROCESS (kept intact for when real file upload is re-enabled)
    ================================================================= */
@@ -2534,10 +2407,8 @@ async function processAll(){
     computeOppCategories();
     setP(75, 'Menyusun visualisasi...');
     await new Promise(r=>setTimeout(r,80));
-
     populateGlobalFilterOptions();
     applyGlobalFilter();
-
     setP(100, 'Selesai!');
     await new Promise(r=>setTimeout(r,200));
     $('progressCard').classList.remove('show');
@@ -2551,7 +2422,6 @@ async function processAll(){
     showToast('Terjadi kesalahan: ' + e.message, 'error');
   }
 }
-
 /* ===================================================================
    EVENTS
    ================================================================= */
@@ -2560,11 +2430,9 @@ async function processAll(){
 // with the static dummy dataset below instead of waiting for a file upload.
 renderSlots();
 setupGlobalDrop();
-
 $('btnProcess').addEventListener('click', processAll);
 $('btnExportExcel').addEventListener('click', exportToExcel);
 $('btnReset').addEventListener('click', () => { if(confirm('Yakin ingin upload ulang? Data saat ini akan dihapus.')) location.reload(); });
-
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
@@ -2580,7 +2448,6 @@ document.querySelectorAll('.tab').forEach(t => {
     }
   });
 });
-
 ['custSearch','custFilterKol','custFilterProduk'].forEach(id => {
   $(id).addEventListener('input', applyCustFilters);
   $(id).addEventListener('change', applyCustFilters);
@@ -2589,7 +2456,6 @@ $('btnClearCustFilter').addEventListener('click', () => {
   $('custSearch').value=''; $('custFilterKol').value=''; $('custFilterProduk').value='';
   applyCustFilters();
 });
-
 $('gfKanwil').addEventListener('change', () => { refreshKancaOptions(); applyGlobalFilter(); });
 $('gfKanca').addEventListener('change', () => { refreshUkerOptions(); applyGlobalFilter(); });
 $('gfUker').addEventListener('change', () => { refreshRmOptions(); applyGlobalFilter(); });
