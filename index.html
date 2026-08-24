@@ -324,18 +324,6 @@ table.data-table .ctr{text-align:center}
 .opp-card .opp-label{font-size:12px;font-weight:700;color:var(--text);margin-top:6px}
 .opp-card .opp-sub{font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.4}
 .opp-card.disabled{opacity:.45}
-.opp-groups{margin-bottom:16px}
-.opp-group{margin-bottom:16px}
-.opp-group-title{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
-.opp-chip-row{display:flex;flex-wrap:wrap;gap:10px}
-.opp-card.opp-chip{
-  display:inline-flex;align-items:center;gap:10px;padding:9px 16px;
-  border-radius:20px;background:var(--surface-alt);
-}
-.opp-card.opp-chip .opp-chip-label{font-size:12.5px;font-weight:700;color:var(--text)}
-.opp-card.opp-chip .opp-chip-count{font-size:14px;font-weight:800;color:var(--brand-dark)}
-.opp-card.opp-chip.active{background:var(--accent-soft)}
-.opp-divider{border:none;border-top:1px solid var(--border);margin:4px 0 16px}
 .opp-detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-top:6px}
 .opp-entry-list{display:flex;flex-direction:column;gap:10px}
 .opp-entry{border:1px solid var(--border);border-left:4px solid var(--brand);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface-alt)}
@@ -520,23 +508,13 @@ table.data-table td.empty{text-align:center}
           <h3>Distribusi Deposit to Loan Nasabah</h3>
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <div class="panel-title">Top 10 Nasabah Prioritas untuk Review</div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <p class="upload-hint" style="margin:-4px 0 12px">Nasabah dengan DPK to Loan terendah untuk menjadi fokus review RM.</p>
-          <div class="table-wrap">
+        <div class="chart-card">
+          <h3>Top 10 Nasabah Prioritas untuk Review</h3>
+          <div class="table-wrap" style="height:280px;overflow-y:auto">
             <table class="data-table" id="priorityReviewTable">
               <thead><tr>
-                <th style="width:36px">#</th>
                 <th>Nasabah</th>
                 <th class="num">DPK to Loan</th>
-                <th class="num">Baki Debet</th>
-                <th class="num">DPK</th>
               </tr></thead>
               <tbody id="priorityReviewBody"></tbody>
             </table>
@@ -601,7 +579,7 @@ table.data-table td.empty{text-align:center}
           </div>
         </div>
         <div class="panel-body">
-          <div class="opp-groups" id="oppGrid"></div>
+          <div class="opp-grid" id="oppGrid"></div>
           <div class="search-wrap no-print" style="margin-bottom:8px;max-width:420px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input class="input" id="oppSearch" placeholder="Cari nama nasabah atau CIF...">
@@ -1356,24 +1334,14 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:      {tag:'PINJAMAN', chip:'Kandidat Pinjaman', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
-  noTabungan:    {tag:'TABUNGAN', chip:'Tabungan', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
-  noGiro:        {tag:'GIRO', chip:'Giro', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
-  noDeposito:    {tag:'DEPOSITO', chip:'Deposito', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
-  noMerchantEdc: {tag:'EDC', chip:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
-  noMerchantQris:{tag:'QRIS', chip:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
-  kolWatch:      {tag:'RECOVERY', chip:'Recovery', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:      {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Nasabah sudah punya simpanan (Tabungan/Giro/Deposito) dan/atau merchant (EDC/QRIS), sedang tidak memiliki fasilitas kredit aktif di BRI.', rec:'Kandidat pipeline kredit — nasabah sudah punya relationship funding/merchant di BRI, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi) sesuai kebutuhan usahanya.'},
+  noTabungan:    {tag:'TABUNGAN', label:'Cross-sell Tabungan', owner:'FT', sub:'Nasabah pinjaman belum punya rekening tabungan di BRI.', rec:'Tawarkan pembukaan rekening tabungan sebagai basis penampungan transaksi harian dan monitoring cashflow nasabah.'},
+  noGiro:        {tag:'GIRO', label:'Cross-sell Giro', owner:'FT', sub:'Nasabah pinjaman belum punya rekening giro.', rec:'Untuk nasabah segmen usaha, giro memudahkan transaksi bisnis dan memperkuat monitoring arus kas pasca pencairan kredit.'},
+  noDeposito:    {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
+  noMerchantEdc: {tag:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
+  noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
+  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
-/* Groups the flat OPP_DEFS categories into the sections the Peluang
-   Pengembangan tab is organized under: Lending / Funding / Transaksi
-   together (cross-sell opportunities), then a visual divider, then
-   Monitoring Portfolio (Recovery — a watch-list, not a cross-sell lead). */
-const OPP_GROUPS = [
-  {title:'Peluang Lending', keys:['pinjaman']},
-  {title:'Peluang Funding', keys:['noTabungan','noGiro','noDeposito']},
-  {title:'Peluang Transaksi', keys:['noMerchantEdc','noMerchantQris']},
-];
-const OPP_MONITORING_GROUP = {title:'Monitoring Portfolio', keys:['kolWatch']};
 function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
@@ -1808,34 +1776,22 @@ function renderCustomerDetail(c){
 /* ===================================================================
    RENDER: OPPORTUNITY TAB
    ================================================================= */
-function renderOppChip(k){
-  const def = OPP_DEFS[k];
-  const list = State.oppCategories[k];
-  const isEmpty = list.length === 0;
-  return `
-    <div class="opp-card opp-chip ${isEmpty?'disabled':''}" data-opp="${k}" onclick="${isEmpty?'':`selectOpp('${k}')`}" title="${escapeHtml(def.sub)}">
-      <span class="opp-chip-label">${escapeHtml(def.chip)}</span>
-      <span class="opp-chip-count">${fmtNum(list.length)}</span>
-    </div>
-  `;
-}
 function renderOppGrid(){
   computeOppCategories();
   const grid = $('oppGrid');
-  const groupsHtml = OPP_GROUPS.map(g => `
-    <div class="opp-group">
-      <div class="opp-group-title">${escapeHtml(g.title)}</div>
-      <div class="opp-chip-row">${g.keys.map(renderOppChip).join('')}</div>
-    </div>
-  `).join('');
-  const monitoringHtml = `
-    <hr class="opp-divider">
-    <div class="opp-group">
-      <div class="opp-group-title">${escapeHtml(OPP_MONITORING_GROUP.title)}</div>
-      <div class="opp-chip-row">${OPP_MONITORING_GROUP.keys.map(renderOppChip).join('')}</div>
-    </div>
-  `;
-  grid.innerHTML = groupsHtml + monitoringHtml;
+  grid.innerHTML = Object.keys(OPP_DEFS).map(k => {
+    const def = OPP_DEFS[k];
+    const list = State.oppCategories[k];
+    const isEmpty = list.length === 0;
+    return `
+      <div class="opp-card ${isEmpty?'disabled':''}" data-opp="${k}" onclick="${isEmpty?'':`selectOpp('${k}')`}">
+        <div class="opp-icon">${def.tag}</div>
+        <div class="opp-count">${list.length}</div>
+        <div class="opp-label">${def.label}</div>
+        <div class="opp-sub">${def.sub}</div>
+      </div>
+    `;
+  }).join('');
   const firstNonEmpty = Object.keys(OPP_DEFS).find(k => State.oppCategories[k].length > 0);
   if(firstNonEmpty) selectOpp(firstNonEmpty);
   else $('oppDetail').innerHTML = '<div class="opp-detail-empty">Tidak ada peluang bisnis yang terdeteksi dari data saat ini.</div>';
@@ -2211,15 +2167,12 @@ function renderPriorityReviewTable(){
     .slice()
     .sort((a,b) => a.fundingCoverage - b.fundingCoverage)
     .slice(0, 10);
-  $('priorityReviewBody').innerHTML = list.length ? list.map((c, i) => `
+  $('priorityReviewBody').innerHTML = list.length ? list.map(c => `
     <tr>
-      <td class="num">${i+1}</td>
       <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
       <td class="num">${(c.fundingCoverage*100).toFixed(1)}%</td>
-      <td class="num">${fmtRupiah(c.totalBakiDebet)}</td>
-      <td class="num">${fmtRupiah(c.totalFunding)}</td>
     </tr>
-  `).join('') : '<tr><td colspan="5" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
+  `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
 }
 /* ===================================================================
    EXPORT TO EXCEL
