@@ -520,10 +520,27 @@ table.data-table td.empty{text-align:center}
           <h3>Distribusi Deposit to Loan Nasabah</h3>
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
-        <div class="chart-card">
-          <h3>Top 10 Nasabah — DPK to Loan Terkecil</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartDtlLowest"></canvas></div>
-          <p class="upload-hint" style="margin-top:8px" id="dtlLowestNote"></p>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Top 10 Nasabah Prioritas untuk Review</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <p class="upload-hint" style="margin:-4px 0 12px">Nasabah dengan DPK to Loan terendah untuk menjadi fokus review RM.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="priorityReviewTable">
+              <thead><tr>
+                <th style="width:36px">#</th>
+                <th>Nasabah</th>
+                <th class="num">DPK to Loan</th>
+                <th class="num">Baki Debet</th>
+                <th class="num">DPK</th>
+              </tr></thead>
+              <tbody id="priorityReviewBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -1456,6 +1473,7 @@ function applyGlobalFilter(){
   applyCustFilters();
   renderOppGrid();
   renderCharts();
+  renderPriorityReviewTable();
 }
 /* Pre-selects the filter to a specific branch on first load so the dashboard
    opens already scoped to the user's own unit kerja, instead of "Semua".
@@ -2094,7 +2112,7 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
    CHARTS
    ================================================================= */
 function renderCharts(){
-  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist','dtlLowest'];
+  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist'];
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
   const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
@@ -2179,35 +2197,29 @@ function renderCharts(){
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
-  // 10 customers with the lowest Deposit to Loan (DPK to Loan) ratio — the
-  // funding relationship is thinnest here relative to their pinjaman, so
-  // these are the first candidates to visit. Only customers with an actual
-  // loan (totalBakiDebet > 0, i.e. fundingCoverage isn't null) are ranked —
-  // a customer with no loan has no DPK to Loan ratio to speak of. Bars are
-  // clickable and jump straight to Profil Nasabah.
-  const dtlLowestList = custs
+}
+/* Top 10 Nasabah Prioritas untuk Review — the customers with the lowest
+   DPK to Loan (Deposit to Loan) ratio, i.e. the thinnest funding
+   relationship relative to their pinjaman, as a quick-scan table for RM
+   review focus. Only customers with an actual loan (fundingCoverage isn't
+   null) are ranked — a customer with no loan has no DPK to Loan ratio to
+   speak of. Rows are clickable and jump straight to Profil Nasabah. */
+function renderPriorityReviewTable(){
+  const custs = getScopedCustomers();
+  const list = custs
     .filter(c => c.fundingCoverage != null)
     .slice()
     .sort((a,b) => a.fundingCoverage - b.fundingCoverage)
     .slice(0, 10);
-  State.charts.dtlLowest = new Chart($('chartDtlLowest'), {
-    type:'bar',
-    data:{labels:dtlLowestList.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'DPK to Loan', data:dtlLowestList.map(c=>(c.fundingCoverage*100)), backgroundColor:'#d64545', borderRadius:4}]},
-    options:{
-      indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+'%'}}},
-      scales:{x:{ticks:{callback:v=>v+'%'}}},
-      onClick:(evt, elements) => {
-        if(!elements.length) return;
-        const c = dtlLowestList[elements[0].index];
-        if(c) goToCustomerDetail(c.cif);
-      },
-      onHover:(evt, elements, chart) => { chart.canvas.style.cursor = elements.length ? 'pointer' : 'default'; }
-    }
-  });
-  $('dtlLowestNote').textContent = dtlLowestList.length
-    ? `${dtlLowestList.length} nasabah dengan DPK to Loan terendah — funding relationship paling minim dibanding pinjamannya, jadi fokus awal prioritas kunjungan. Klik bar untuk membuka Profil Nasabah.`
-    : 'Tidak ada nasabah pinjaman pada scope filter saat ini.';
+  $('priorityReviewBody').innerHTML = list.length ? list.map((c, i) => `
+    <tr>
+      <td class="num">${i+1}</td>
+      <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
+      <td class="num">${(c.fundingCoverage*100).toFixed(1)}%</td>
+      <td class="num">${fmtRupiah(c.totalBakiDebet)}</td>
+      <td class="num">${fmtRupiah(c.totalFunding)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
 }
 /* ===================================================================
    EXPORT TO EXCEL
