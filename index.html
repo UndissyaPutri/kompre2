@@ -1728,8 +1728,8 @@ function renderCustomerDetail(c){
     <tr><td>${escapeHtml(t.accountNumber)}</td><td>${escapeHtml(t.productCode)}</td><td class="num">${fmtRupiah(t._balance)}</td><td class="ctr">${escapeHtml(t.openDate)}</td><td>${escapeHtml(cleanPn(t.pnPengelola))}</td></tr>
   `).join('') || '<tr><td colspan="5" class="empty">Belum ada rekening giro.</td></tr>';
   const depositoRows = c.deposito.map(t => `
-    <tr><td>${escapeHtml(t.acctno)}</td><td class="num">${fmtRupiah(t._principal)}</td><td>${escapeHtml(t.intRate)}%</td><td>${escapeHtml(t.matDt)}</td><td>${escapeHtml(cleanPn(t.pnRmDana))}</td><td>${t._matchType==='name-fuzzy' ? '<span class="badge-pill k-3">nama mirip - cek manual</span>' : '<span class="badge-pill prod-yes">nama sama</span>'}</td></tr>
-  `).join('') || '<tr><td colspan="6" class="empty">Belum ada rekening deposito.</td></tr>';
+    <tr><td>${escapeHtml(t.acctno)}</td><td class="num">${fmtRupiah(t._principal)}</td><td>${escapeHtml(t.intRate)}%</td><td>${escapeHtml(t.matDt)}</td><td>${escapeHtml(cleanPn(t.pnRmDana))}</td></tr>
+  `).join('') || '<tr><td colspan="5" class="empty">Belum ada rekening deposito.</td></tr>';
   const merchantRows = [
     ...c.edc.map(m => `<tr><td>EDC</td><td>${escapeHtml(m.namaMerchant)}</td><td>${escapeHtml(m.mid)}</td><td class="num ctr">${fmtNum(m._trx)}</td><td class="num">${fmtRupiah(m._volume)}</td><td class="ctr">${escapeHtml(combinePn(m.pnUser, m.namaUser))}</td></tr>`),
     ...c.qris.map(m => `<tr><td>QRIS</td><td>${escapeHtml(m.namaMerchant)}</td><td>-</td><td class="num ctr">${fmtNum(m._trx)}</td><td class="num">${fmtRupiah(m._volume)}</td><td class="ctr">${escapeHtml(combinePn(m.pn, m.pnNama))}</td></tr>`),
@@ -1767,7 +1767,7 @@ function renderCustomerDetail(c){
       <div class="detail-section-title">Giro (${c.giro.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Produk</th><th class="num">Saldo</th><th class="ctr">Tgl Buka</th><th>RM Pengelola FT</th></tr></thead><tbody>${giroRows}</tbody></table></div>
       <div class="detail-section-title">Deposito (${c.deposito.length}) — dicocokkan berdasarkan nama (tanpa CIF)</div>
-      <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th class="num">Nominal</th><th>Rate</th><th>Jatuh Tempo</th><th>RM Pengelola FT</th><th>Kualitas Match</th></tr></thead><tbody>${depositoRows}</tbody></table></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th class="num">Nominal</th><th>Rate</th><th>Jatuh Tempo</th><th>RM Pengelola FT</th></tr></thead><tbody>${depositoRows}</tbody></table></div>
       <div class="detail-section-title">Merchant EDC / QRIS (${c.edc.length + c.qris.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Tipe</th><th>Nama Merchant</th><th>MID</th><th class="num ctr">Transaksi</th><th class="num">Volume</th><th class="ctr">RM Pengelola FT</th></tr></thead><tbody>${merchantRows}</tbody></table></div>
     </div>
