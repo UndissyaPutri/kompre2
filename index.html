@@ -1275,12 +1275,18 @@ function buildCustomers(){
       ...c.qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
     const opp = [];
-    if(c.tabungan.length===0) opp.push('noTabungan');
-    if(c.giro.length===0) opp.push('noGiro');
-    if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
-    if(c.edc.length===0) opp.push('noMerchantEdc');
-    if(c.qris.length===0) opp.push('noMerchantQris');
-    if(c.worstKol >= 2) opp.push('kolWatch');
+    // Cross-sell only applies to a healthy (Kol 1) relationship — a Kol 2+
+    // customer needs to come back to Kol 1 first, so they go to Recovery /
+    // Monitoring instead of being offered more products in the meantime.
+    if(c.worstKol === 1){
+      if(c.tabungan.length===0) opp.push('noTabungan');
+      if(c.giro.length===0) opp.push('noGiro');
+      if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
+      if(c.edc.length===0) opp.push('noMerchantEdc');
+      if(c.qris.length===0) opp.push('noMerchantQris');
+    }
+    if(c.worstKol === 2) opp.push('quality');
+    if(c.worstKol >= 3) opp.push('kolWatch');
     // "Currently has no active credit facility" — not "never had one". A
     // customer whose loan is fully paid off (Baki Debet = 0) but who still
     // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
@@ -1340,7 +1346,8 @@ const OPP_DEFS = {
   noDeposito:    {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
   noMerchantEdc: {tag:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Nasabah belum memiliki merchant EDC.', rec:'Peluang akuisisi merchant EDC untuk nasabah dengan usaha produktif, memperluas fee based income & data transaksi tunai/kartu.'},
   noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Nasabah belum memiliki QRIS.', rec:'Peluang akuisisi QRIS — akuisisi ekosistem pembayaran digital yang lebih murah & cepat setup dibanding EDC, cocok untuk usaha skala kecil-menengah.'},
-  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 2 ke atas.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  quality:       {tag:'QUALITY', label:'Quality — Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2 — perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
+  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas — belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
 function computeOppCategories(){
   const cats = {};
@@ -1588,11 +1595,12 @@ function productPills(c){
    Wrapped in a fixed 2-column grid so a customer with many opportunities never
    forces the column (and the whole table) to widen — it just grows downward.
    Tiered by Kolektibilitas, same logic as the detail card's recommendations:
-   problem loans (Kol 3-5) get a single Monitoring/Eksekusi badge instead of
-   product pitches; Kol 2 gets a Monitoring badge alongside cross-sell; Kol 1
-   customers who also land in the Priority 1 visit-matrix quadrant get a
-   Joint OTS badge. The generic risk flag ('kolWatch') itself is never shown
-   here — it's superseded by these more specific badges. */
+   problem loans (Kol 3-5) get a single Recovery badge instead of product
+   pitches; Kol 2 gets a Monitoring badge (no cross-sell — see the Kol === 1
+   gate in buildCustomers/generateDummyCustomers); Kol 1 customers who also
+   land in the Priority 1 visit-matrix quadrant get a Joint OTS badge. The
+   generic risk flags ('kolWatch', 'quality') themselves are never shown
+   here — they're superseded by these more specific badges. */
 function oppPills(c){
   const kol = c.worstKol;
   const badges = [];
@@ -1601,7 +1609,7 @@ function oppPills(c){
   } else {
     if(kol === 2) badges.push({tag:'MONITORING', title:'Kol 2 - Dalam Perhatian Khusus: perlu dipantau komitmen pembayarannya.'});
     if(kol === 1 && c.priorityQuad === 'needsVisit') badges.push({tag:'JOINT OTS', title:'Lancar namun Deposit to Loan rendah (Perlu Kunjungan) — peluang kunjungan bersama RM SME & RM FT.'});
-    c.opportunities.filter(k => k !== 'kolWatch').forEach(k => {
+    c.opportunities.filter(k => k !== 'kolWatch' && k !== 'quality').forEach(k => {
       const def = OPP_DEFS[k];
       badges.push({tag:def.tag, title:`${def.label} — ${def.sub}`});
     });
@@ -1695,10 +1703,12 @@ function renderOpportunityRecommendations(c){
   } else if(kol === 1 && c.priorityQuad === 'needsVisit'){
     notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan masih rendah (&lt;5%, lihat tab Prioritas Pengelolaan) — peluang kuat untuk kunjungan bersama RM SME &amp; RM FT guna memperdalam relationship funding.</div>`);
   }
-  // Product cross-sell opportunities are only pushed for accounts that are
-  // still in reasonably good standing (Kol 1–2) — see note above.
+  // Product cross-sell opportunities are only pushed for Kol 1 accounts —
+  // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
+  // c.opportunities is already empty of them for Kol 2+; this filter just
+  // keeps 'kolWatch'/'quality' (already rendered above) from duplicating.
   if(kol < 3){
-    c.opportunities.filter(k => k !== 'kolWatch').forEach(k => {
+    c.opportunities.filter(k => k !== 'kolWatch' && k !== 'quality').forEach(k => {
       notes.push(`<div class="rec-note"><strong>${OPP_DEFS[k].label}:</strong> ${OPP_DEFS[k].rec}</div>`);
     });
   }
@@ -1816,9 +1826,10 @@ function buildOppInsightNote(c, key){
   if(c.worstKol >= 3){
     return `<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f;margin-top:8px"><strong>Recovery (Kol ${c.worstKol} - ${KOL_LABEL[c.worstKol]||''}):</strong> Kolektibilitas sedang bermasalah — bukan waktunya cross-sell, fokus dulu ke penanganan kredit (monitoring/restrukturisasi/eksekusi).</div>`;
   }
-  if(key === 'kolWatch'){
-    // Kol ≥3 already handled above, so this only fires for Kol 2 entries here.
-    return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk lebih lanjut.</div>`;
+  if(key === 'quality'){
+    // 'quality' entries are always Kol 2 (Kol ≥3 goes to 'kolWatch' /
+    // Recovery instead, already handled above).
+    return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Quality (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk ke Kol 3 ke atas.</div>`;
   }
   const owned = [];
   if(c.tabungan.length) owned.push('Tabungan');
@@ -2337,12 +2348,15 @@ function generateDummyCustomers(){
       ...qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
     const opp = [];
-    if(c.tabungan.length===0) opp.push('noTabungan');
-    if(c.giro.length===0) opp.push('noGiro');
-    if(c.deposito.length===0 && c.totalFunding>50000000) opp.push('noDeposito');
-    if(c.edc.length===0) opp.push('noMerchantEdc');
-    if(c.qris.length===0) opp.push('noMerchantQris');
-    if(c.worstKol>=2) opp.push('kolWatch');
+    if(c.worstKol === 1){
+      if(c.tabungan.length===0) opp.push('noTabungan');
+      if(c.giro.length===0) opp.push('noGiro');
+      if(c.deposito.length===0 && c.totalFunding>50000000) opp.push('noDeposito');
+      if(c.edc.length===0) opp.push('noMerchantEdc');
+      if(c.qris.length===0) opp.push('noMerchantQris');
+    }
+    if(c.worstKol===2) opp.push('quality');
+    if(c.worstKol>=3) opp.push('kolWatch');
     c.opportunities = opp;
     c.oppCount = opp.length;
     list.push(c);
