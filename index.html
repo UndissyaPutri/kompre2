@@ -447,7 +447,6 @@ table.data-table td.empty{text-align:center}
       </div>
     </div>
     <div class="header-actions" id="headerActions" style="display:none">
-      <button class="btn btn-light" id="btnReset">↻ Upload Baru</button>
       <button class="btn btn-light" id="btnExportExcel">Export Excel</button>
     </div>
   </div>
@@ -739,6 +738,8 @@ const SLOTS = [
    desc:'Data merchant EDC, di-lookup berdasarkan CIFNO ke LW321.'},
   {key:'QRIS', title:'Merchant QRIS', required:false, ext:'.csv', match:['QRIS'],
    desc:'Data merchant QRIS, di-lookup berdasarkan CIF ke LW321.'},
+  {key:'PRODUCT_HOLDING', title:'Product Holding', required:false, ext:'.xlsx', match:['PRODUCT HOLDING','PRODUCT_HOLDING','HOLDING'],
+   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah — ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang.'},
 ];
 const State = {
   files:{},        // key -> {file, name}
@@ -1066,6 +1067,31 @@ function readXlsxAsAOA(file){
     reader.readAsArrayBuffer(file);
   });
 }
+/* Same as readXlsxAsAOA, but also returns the sheet's merged-cell ranges
+   (ws['!merges']) alongside the array-of-arrays. Only the Product Holding
+   parser needs this: its two-row header groups several metric columns
+   under one product category via genuine Excel cell merges (verified: the
+   non-anchor cells in a merged range aren't blank in this report's XML —
+   they're literal empty-string cells, same as the standalone TF/TOTAL
+   PRODUK columns that precede no group at all — so cell TEXT alone can't
+   tell "still part of the previous category" apart from "hard stop,
+   standalone column"; only the merge metadata can). See
+   parseProductHoldingAOA. */
+function readXlsxAsAOAWithMerges(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
+        resolve({aoa, merges: ws['!merges']||[]});
+      } catch(err){ reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
 function readDelimitedAsAOA(file, delimiter){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1082,7 +1108,103 @@ function readDelimitedAsAOA(file, delimiter){
     reader.readAsArrayBuffer(file);
   });
 }
+/* Product Holding's two-row header (category row + sub-metric row) and its
+   repeated sub-metric labels (BALANCE/ADB/AUM/JUMLAH_REKENING appear under
+   many different product categories at different columns) can't go through
+   the generic single-row buildRows() — its colIdx mapping only keeps the
+   FIRST occurrence of each header string, which would collapse every
+   "BALANCE" column onto one. This walks the two header rows directly:
+   groups multi-metric categories via the sheet's genuine merged-cell
+   ranges over the category row (see readXlsxAsAOAWithMerges — cell TEXT
+   alone can't tell a merged-away continuation cell apart from a standalone
+   hard-stop column, since both are literal empty strings in this file), a
+   defensive forward-fill covers any column that's genuinely blank/missing
+   instead (in case a future export has real gaps rather than merges), then
+   reads each data row's flag (the group's first column — verified against
+   real sample data to be a genuine 0/1 hold-flag even for multi-metric
+   groups) and metric values. */
+function parseProductHoldingAOA(aoa, merges){
+  const hdrIdx = findHeaderRow(aoa, ['CIFNO','PERIODE']);
+  if(hdrIdx < 0) throw new Error('Header kolom yang diharapkan (CIFNO, PERIODE) tidak ditemukan pada file ini.');
+  const subIdx = hdrIdx + 1;
+  const headerRow = aoa[hdrIdx] || [];
+  const subRow = aoa[subIdx] || [];
+  const normed = headerRow.map(normHeader);
+  const cifCol = normed.indexOf('CIFNO');
+  const periodeCol = normed.indexOf('PERIODE');
+  if(cifCol < 0) throw new Error('Kolom CIFNO tidak ditemukan pada file Product Holding.');
+  const nCols = Math.max(headerRow.length, subRow.length);
+  const cat = new Array(nCols).fill(null);
+  let last = null;
+  for(let i = cifCol+1; i < nCols; i++){
+    const v = headerRow[i];
+    if(v === undefined || v === null){ cat[i] = last; } // genuine gap -> defensive forward-fill
+    else if(v === ''){ cat[i] = null; last = null; }     // explicit empty string -> hard stop (pending merge override)
+    else { cat[i] = cleanStr(v); last = cat[i]; }
+  }
+  // Merge metadata is authoritative where present: every column spanned by
+  // a merge on the header row belongs to that merge's anchor category,
+  // regardless of what the forward-fill guessed from cell text above.
+  (merges||[]).forEach(m => {
+    if(m.s.r === hdrIdx && m.e.r === hdrIdx && m.e.c > m.s.c && m.s.c > cifCol){
+      const anchorVal = headerRow[m.s.c];
+      if(anchorVal !== undefined && anchorVal !== null && anchorVal !== ''){
+        const label = cleanStr(anchorVal);
+        for(let c = m.s.c; c <= m.e.c; c++) cat[c] = label;
+      }
+    }
+  });
+  const groupDefs = [];
+  let i = cifCol+1;
+  while(i < nCols){
+    const c = cat[i];
+    if(c == null){ i++; continue; } // standalone column (e.g. TF, TOTAL PRODUK) — not part of any product group
+    const cols = [i];
+    let j = i+1;
+    while(j < nCols && cat[j] === c){ cols.push(j); j++; }
+    groupDefs.push({category:c, cols});
+    i = j;
+  }
+  const findStandaloneCol = label => {
+    for(let k = cifCol+1; k < nCols; k++){
+      if(cat[k] == null && cleanStr(subRow[k]).toUpperCase() === label) return k;
+    }
+    return -1;
+  };
+  const tfCol = findStandaloneCol('TF');
+  const totalProdukCol = findStandaloneCol('TOTAL PRODUK');
+  const rows = [];
+  for(let r = subIdx+1; r < aoa.length; r++){
+    const row = aoa[r];
+    if(!row) continue;
+    const cif = cleanStr(row[cifCol]);
+    if(!cif) continue;
+    const groups = groupDefs.map(g => {
+      const flagRaw = row[g.cols[0]];
+      const metrics = {};
+      for(let k=1; k<g.cols.length; k++){
+        const label = cleanStr(subRow[g.cols[k]]);
+        if(label) metrics[label] = row[g.cols[k]];
+      }
+      return {category:g.category, flag: parseNum(flagRaw) > 0, metrics};
+    });
+    rows.push({
+      cif,
+      periode: periodeCol>=0 ? cleanStr(row[periodeCol]) : '',
+      groups,
+      tf: tfCol>=0 ? parseNum(row[tfCol]) : 0,
+      totalProduk: totalProdukCol>=0 ? parseNum(row[totalProdukCol]) : 0,
+    });
+  }
+  return rows;
+}
 async function parseFileForSlot(key, file){
+  if(key === 'PRODUCT_HOLDING'){
+    // Always .xlsx (see SLOTS) and always needs the merge-aware reader —
+    // see readXlsxAsAOAWithMerges / parseProductHoldingAOA above.
+    const {aoa, merges} = await readXlsxAsAOAWithMerges(file);
+    return parseProductHoldingAOA(aoa, merges);
+  }
   const cfg = PARSERS[key];
   let aoa;
   if(file.name.toLowerCase().endsWith('.csv')){
@@ -1700,6 +1822,17 @@ function buildCustomers(){
     c.opportunities = opp;
     c.oppCount = opp.length;
   });
+  // Product Holding (optional monthly upload) — joined by exact CIF match,
+  // same as DI319/DI321/EDC/QRIS above. Kept as its own Map (like
+  // fundingOnlyProspects) rather than merged onto the customer object: it's
+  // shown read-only alongside Rekening Koran (modal + Customer 360 detail),
+  // not consumed by any opportunity-detection logic. Keyed purely by CIF so
+  // the same Map serves both LW321 customers and funding-only prospects.
+  const productHolding = new Map();
+  (State.raw['PRODUCT_HOLDING']||[]).forEach(row => {
+    if(row && row.cif) productHolding.set(row.cif, row);
+  });
+  State.productHolding = productHolding;
   State.customers = customers;
   State.customersVersion = (State.customersVersion||0) + 1;
   State.diag = diagCounts;
@@ -2140,14 +2273,31 @@ function buildPipelineNearMissNote(c){
   const ev = c.pipelineEval;
   if(!ev || !ev.monthsCovered) return null;
   const T = PIPELINE_THRESHOLDS;
+  // 'pinjaman' (and therefore the CASA Optimal / Transaksi Optimal pipelines
+  // as loan-acquisition signals) is strictly gated on totalBakiDebet===0 —
+  // see computeOppCategories/buildCustomers. An active-loan customer can
+  // NEVER unlock a 'pinjaman' opportunity by closing a CASA/Transaksi
+  // Optimal gap, so pointing them there is a dead end. The only pipeline
+  // still reachable for them is Merchant (EDC/QRIS cross-sell); the DPK to
+  // Loan >5% angle is already covered separately by the "Joint OTS" note
+  // above (kol===1 && priorityQuad==='needsVisit'), so it isn't duplicated
+  // here.
+  const hasActiveLoan = (c.totalBakiDebet||0) > 0;
   const candidates = [];
-  if(!ev.casaOptimal){
-    candidates.push({pipeline:'CASA Optimal', metric:'rata-rata CASA (ratas 12 bulan)', current:ev.avgCasa12||0, min:T.casaOptimal.casaMin, unit:'money'});
-    candidates.push({pipeline:'CASA Optimal', metric:'frekuensi transaksi (12 bulan)', current:ev.avgFreq12||0, min:T.casaOptimal.freqMin, unit:'freq'});
-  }
-  if(!ev.transaksiOptimal){
-    candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata transaksi kredit per bulan (6 bulan)', current:ev.avgCreditMonthly||0, min:T.transaksiOptimal.creditMin, unit:'money'});
-    candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata CASA (ratas 6 bulan)', current:ev.avgCasa||0, min:T.transaksiOptimal.casaMin, unit:'money'});
+  if(hasActiveLoan){
+    if(!ev.merchant){
+      candidates.push({pipeline:'Nasabah Merchant', metric:'rata-rata CASA (ratas 6 bulan)', current:ev.avgCasa||0, min:T.merchant.casaMin, unit:'money'});
+      candidates.push({pipeline:'Nasabah Merchant', metric:'frekuensi transaksi (6 bulan)', current:ev.avgFreq||0, min:T.merchant.freqMin, unit:'freq'});
+    }
+  } else {
+    if(!ev.casaOptimal){
+      candidates.push({pipeline:'CASA Optimal', metric:'rata-rata CASA (ratas 12 bulan)', current:ev.avgCasa12||0, min:T.casaOptimal.casaMin, unit:'money'});
+      candidates.push({pipeline:'CASA Optimal', metric:'frekuensi transaksi (12 bulan)', current:ev.avgFreq12||0, min:T.casaOptimal.freqMin, unit:'freq'});
+    }
+    if(!ev.transaksiOptimal){
+      candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata transaksi kredit per bulan (6 bulan)', current:ev.avgCreditMonthly||0, min:T.transaksiOptimal.creditMin, unit:'money'});
+      candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata CASA (ratas 6 bulan)', current:ev.avgCasa||0, min:T.transaksiOptimal.casaMin, unit:'money'});
+    }
   }
   let best = null;
   candidates.forEach(cd => {
@@ -2161,7 +2311,8 @@ function buildPipelineNearMissNote(c){
   const actionText = best.unit==='freq'
     ? 'dorong frekuensi transaksi rekening (migrasi mutasi debit/kredit rutin — payroll, pembayaran vendor, dsb — ke rekening BRI)'
     : 'dorong top up CASA (Tabungan/Giro), misalnya mengarahkan penempatan dana idle atau hasil penjualan ke rekening BRI';
-  return `<div class="rec-note"><strong>Pipeline ${escapeHtml(best.pipeline)} — hampir tercapai (${Math.round(best.ratio*100)}%):</strong> ${escapeHtml(best.metric)} nasabah ini saat ini ${fmtVal(best.current)}, masih kurang ${fmtVal(gap)} lagi dari ambang batas ${fmtVal(best.min)}. Rekomendasi: ${actionText} agar nasabah ini bisa masuk sebagai kandidat Peluang Pinjaman baru.</div>`;
+  const targetText = hasActiveLoan ? 'kandidat Cross-sell Merchant (EDC/QRIS) baru' : 'kandidat Peluang Pinjaman baru';
+  return `<div class="rec-note"><strong>Pipeline ${escapeHtml(best.pipeline)} — hampir tercapai (${Math.round(best.ratio*100)}%):</strong> ${escapeHtml(best.metric)} nasabah ini saat ini ${fmtVal(best.current)}, masih kurang ${fmtVal(gap)} lagi dari ambang batas ${fmtVal(best.min)}. Rekomendasi: ${actionText} agar nasabah ini bisa masuk sebagai ${targetText}.</div>`;
 }
 function renderOpportunityRecommendations(c){
   const kol = c.worstKol;
@@ -2290,6 +2441,43 @@ function renderRekeningKoranSection(c){
     </div>
   `;
 }
+/* ===================================================================
+   PRODUCT HOLDING (optional monthly upload) — read-only display
+   ------------------------------------------------------------------
+   Shown directly below Rekening Koran, both in the modal popup (opp-entry
+   cards) and in the Customer 360 detail dropdown — see PRODUCT_HOLDING in
+   SLOTS / parseProductHoldingAOA for how the data is parsed and joined by
+   CIF. Purely informational: not used in any opportunity-detection logic.
+   ================================================================= */
+function fmtHoldingMetric(label, v){
+  const isMoney = /BALANCE|ADB|AUM|PREMI|FBI/i.test(label);
+  const isCount = /JUMLAH|STATUS/i.test(label);
+  if(isMoney) return fmtRupiah(parseNum(v));
+  if(isCount) return fmtNum(parseNum(v));
+  return cleanStr(v) || '-';
+}
+function renderProductHoldingSection(cif){
+  const rec = State.productHolding && State.productHolding.get(cif);
+  if(!rec) return `<div class="upload-hint" style="margin-top:8px">Belum ada data Product Holding untuk nasabah ini (file Product Holding bersifat opsional).</div>`;
+  const held = (rec.groups||[]).filter(g => g.flag);
+  const rows = held.map(g => {
+    const metricStr = Object.entries(g.metrics||{})
+      .map(([label,v]) => `${escapeHtml(label.replace(/_/g,' '))}: ${fmtHoldingMetric(label, v)}`)
+      .join(' &middot; ');
+    return `<tr><td>${escapeHtml(g.category.replace(/^\*/,''))}</td><td>${metricStr || '<span class="empty">Aktif</span>'}</td></tr>`;
+  }).join('') || '<tr><td colspan="2" class="empty">Nasabah ini belum tercatat memiliki produk apa pun pada data Product Holding.</td></tr>';
+  return `
+    <div class="rekkoran-box" style="margin-top:12px">
+      <div class="rekkoran-head">
+        <div>
+          <strong>Product Holding${rec.periode ? ' — Periode ' + escapeHtml(rec.periode) : ''}</strong>
+          <div class="upload-hint">Total produk dimiliki: <strong>${fmtNum(rec.totalProduk||held.length)}</strong>${rec.tf ? ` &middot; TF: ${fmtRupiah(rec.tf)}` : ''}</div>
+        </div>
+      </div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Produk</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>
+  `;
+}
 /* Rekening Koran pop-up — lets an opp-entry card (Peluang Pengembangan:
    Pinjaman, Cash Collateral, Merchant, etc.) show the same Rekening Koran
    table + Pipeline SME badges as the Profil Nasabah / Customer 360 view,
@@ -2315,7 +2503,7 @@ function showRekeningKoranModal(cif){
   }
   $('rkModalTitle').textContent = nama || '(tanpa nama)';
   $('rkModalSub').textContent = subLabel;
-  $('rkModalBody').innerHTML = renderRekeningKoranSection(entity);
+  $('rkModalBody').innerHTML = renderRekeningKoranSection(entity) + renderProductHoldingSection(entity.cif);
   $('rkModalOverlay').classList.add('show');
 }
 window.showRekeningKoranModal = showRekeningKoranModal;
@@ -2388,6 +2576,8 @@ function renderCustomerDetail(c){
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Tipe</th><th>Nama Merchant</th><th>MID</th><th class="num ctr">Transaksi</th><th class="num">Volume</th><th class="ctr">RM Pengelola FT</th></tr></thead><tbody>${merchantRows}</tbody></table></div>
       <div class="detail-section-title">Rekening Koran — Pipeline SME (Ketentuan Ekspansi Kredit 2026)</div>
       ${renderRekeningKoranSection(c)}
+      <div class="detail-section-title">Product Holding</div>
+      ${renderProductHoldingSection(c.cif)}
     </div>
   `;
 }
@@ -2521,9 +2711,14 @@ function selectOpp(k, resetPinjamanPage=true){
     if(k === 'pinjaman'){
       // Default ("") shows everyone who qualifies via either pipeline
       // (unchanged) — the dropdown only narrows down from there.
+      // Mutually-exclusive partitions: "CASA Optimal" means CASA-only
+      // (excludes anyone who also qualifies for Transaksi Optimal — those
+      // belong under "Keduanya"), "Transaksi Optimal" means TRX-only, and
+      // "Keduanya" means both. Default (empty/"Semua Pipeline") stays
+      // unfiltered — CASA-only + TRX-only + both all show.
       const pipelineFilter = $('oppPinjamanPipelineFilter').value;
-      if(pipelineFilter === 'casaOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal);
-      else if(pipelineFilter === 'transaksiOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.transaksiOptimal);
+      if(pipelineFilter === 'casaOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal && !p.pipelineEval.transaksiOptimal);
+      else if(pipelineFilter === 'transaksiOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.transaksiOptimal && !p.pipelineEval.casaOptimal);
       else if(pipelineFilter === 'both') list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal && p.pipelineEval.transaksiOptimal);
     }
     // list may still be the same array reference as State.oppCategories[k]
@@ -2550,12 +2745,13 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Total Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
           ${rows}
-          <!-- RM fields last (Kredit 2nd-to-last, FT last) rather than up
-               near the top — RM FT in particular can list more than one
-               name (comma-joined), and a long wrapped value in the middle
-               of the grid pushes/misaligns the fields after it. FT also
-               gets 2 grid columns' width so that list has room to breathe. -->
-          <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(p.rmSme || '-')}</span></div>
+          <!-- Pipeline (Pinjaman) / Cash Collateral entries are prospect-
+               shaped and have no RM Pengelola Kredit at all here — a
+               prospect either has no loan (funding-only) or, if sourced
+               from an existing customer, the Kredit RM isn't the relevant
+               relationship for these two categories. Only RM Pengelola FT
+               shows, as the last field, with room to breathe for a
+               comma-joined multi-name list. -->
           <div class="detail-field detail-field-wide"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
         </div>
         <button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(p.cif)}')">Lihat Rekening Koran</button>
@@ -2585,9 +2781,12 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(c.uker)}</span></div>
         <div class="detail-field"><span class="lbl">Baki Debet</span><span class="val">${fmtRupiah(c.totalBakiDebet)}</span></div>
         <div class="detail-field"><span class="lbl">Total Funding</span><span class="val">${fmtRupiah(c.totalFunding)}</span></div>
-        <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
-        <!-- RM FT last — see note above on the prospect-shaped template. -->
+        <!-- Cross-sell Merchant / Recovery / Quality entries are the generic
+             customer-shaped template — RM Pengelola FT (wide, may list
+             several comma-joined names) sits 2nd-to-last, and RM Pengelola
+             Kredit is pushed to the absolute last field. -->
         <div class="detail-field detail-field-wide"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((c.rmFundingList && c.rmFundingList.length) ? c.rmFundingList.join(', ') : '-')}</span></div>
+        <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
       </div>
       <button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(c.cif)}')">Lihat Rekening Koran</button>
       ${buildOppInsightNote(c, k)}
@@ -3110,11 +3309,46 @@ function generateDummyFundingOnlyProspects(){
   prospects.forEach(p => { p.pipelineEval = evaluateRekeningKoranPipelines({rekeningKoran:p.rekeningKoran||[]}); });
   return prospects;
 }
+/* Demo/test stand-in for an uploaded Product Holding file — same CIF-seeded
+   deterministic-simulation approach as generateDummyRekeningKoran, so the
+   dummy dashboard (and Playwright regression tests) can exercise the
+   Product Holding rendering (modal + Customer 360 detail) without a real
+   monthly upload. Shape matches parseProductHoldingAOA's real output. */
+const PRODUCT_HOLDING_DEMO_CATEGORIES = [
+  {category:'TABUNGAN BASIC', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
+  {category:'GIRO BASIC', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
+  {category:'DEPOSITO', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
+  {category:'KARTU KREDIT', metrics:[]},
+  {category:'BRIMO', metrics:[]},
+  {category:'EDC', metrics:[]},
+  {category:'QRIS', metrics:[]},
+  {category:'ASURANSI MIKRO', metrics:['JUMLAH_POLIS','PREMI','FBI']},
+];
+function generateDummyProductHolding(cif){
+  const rand = seededRand(cif + '|productholding');
+  const groups = PRODUCT_HOLDING_DEMO_CATEGORIES.map(def => {
+    const flag = rand() < 0.45;
+    const metrics = {};
+    if(flag){
+      def.metrics.forEach(m => {
+        metrics[m] = (m === 'JUMLAH_REKENING' || m === 'JUMLAH_POLIS')
+          ? 1 + Math.floor(rand()*3)
+          : Math.round(5000000 + rand()*95000000);
+      });
+    }
+    return {category:def.category, flag, metrics};
+  });
+  const totalProduk = groups.filter(g => g.flag).length;
+  return {periode:'Jun 2026', groups, tf: totalProduk ? Math.round(rand()*2000000) : 0, totalProduk};
+}
 function loadDummyDashboard(){
   State.customers = new Map(generateDummyCustomers().map(c => [c.cif, c]));
   State.fundingOnlyProspects = generateDummyFundingOnlyProspects();
   State.inferredRmPairing = computeInferredRmPairing(State.customers);
   State.customersVersion = (State.customersVersion||0) + 1;
+  State.productHolding = new Map();
+  State.customers.forEach(c => State.productHolding.set(c.cif, generateDummyProductHolding(c.cif)));
+  (State.fundingOnlyProspects||[]).forEach(p => State.productHolding.set(p.cif, generateDummyProductHolding(p.cif)));
   populateGlobalFilterOptions();
   applyGlobalFilter();
   $('uploadSection').style.display = 'none';
@@ -3161,7 +3395,6 @@ renderSlots();
 setupGlobalDrop();
 $('btnProcess').addEventListener('click', processAll);
 $('btnExportExcel').addEventListener('click', exportToExcel);
-$('btnReset').addEventListener('click', () => { if(confirm('Yakin ingin upload ulang? Data saat ini akan dihapus.')) location.reload(); });
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
