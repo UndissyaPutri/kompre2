@@ -352,8 +352,14 @@ table.data-table .ctr{text-align:center}
 .partner-table{border-left:4px solid var(--border)}
 .partner-table.success{border-left-color:var(--success)}
 .partner-table.success table.data-table th{background:var(--success)}
+.partner-table.success table.data-table th:hover{background:var(--success)}
+.partner-table.success table.data-table tbody tr:nth-child(even) td{background:#e5f6ef}
+.partner-table.success table.data-table tr:hover td{background:#e5f6ef}
 .partner-table.warning{border-left-color:var(--warning)}
 .partner-table.warning table.data-table th{background:var(--warning)}
+.partner-table.warning table.data-table th:hover{background:var(--warning)}
+.partner-table.warning table.data-table tbody tr:nth-child(even) td{background:#fdf3dc}
+.partner-table.warning table.data-table tr:hover td{background:#fdf3dc}
 .rekkoran-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
 .sim-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;background:var(--warning);color:#fff;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
 .pipeline-badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px}
@@ -472,7 +478,7 @@ table.data-table td.empty{text-align:center}
   <section id="uploadSection">
    <div class="upload-wrap">
     <div class="upload-intro">
-      <p><code>LW321 (Pinjaman)</code> wajib diupload, semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap Profil Nasabah, Prioritas Pengelolaan, dan Peluang Pengembangan yang dihasilkan.</p>
+      <p><code>LW321 (Pinjaman)</code> wajib diupload, semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (pinjaman, simpanan, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap Profil Nasabah, Prioritas Pengelolaan, dan Peluang Pengembangan yang dihasilkan.</p>
     </div>
     <div class="slot-grid" id="slotGrid"></div>
     <div class="upload-actions">
@@ -548,12 +554,12 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartTopDebet"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Top 10 Nasabah Prioritas untuk Review</h3>
+          <h3>Top 10 Nasabah Simpanan</h3>
           <div class="table-wrap" style="height:280px;overflow-y:auto">
             <table class="data-table" id="priorityReviewTable">
               <thead><tr>
                 <th>Nasabah</th>
-                <th class="num">DPK to Loan</th>
+                <th class="num">Total Simpanan</th>
               </tr></thead>
               <tbody id="priorityReviewBody"></tbody>
             </table>
@@ -564,7 +570,7 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Tabel RM Pairing (RM SME x RM FT)</h3>
+          <h3>Tabel RM Pairing (RM SME x RM FT), Top 10</h3>
           <div class="table-wrap" style="height:280px;overflow-y:auto">
             <table class="data-table" id="rmPairingTable">
               <thead><tr>
@@ -762,7 +768,7 @@ const SLOTS = [
   {key:'QRIS', title:'Merchant QRIS', required:false, ext:'.csv', match:['QRIS'],
    desc:'Data merchant QRIS, di-lookup berdasarkan CIF ke LW321.'},
   {key:'PRODUCT_HOLDING', title:'Product Holding', required:false, ext:'.xlsx', match:['PRODUCT HOLDING','PRODUCT_HOLDING','HOLDING'], multiple:true,
-   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah, ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang. Bisa upload lebih dari satu file (misalnya sisi SME dan FT terpisah) — datanya digabung berdasarkan CIF.'},
+   desc:'Opsional. Bisa upload lebih dari satu file (misalnya sisi SME dan FT terpisah), datanya digabung berdasarkan CIF.'},
 ];
 const State = {
   files:{},        // key -> {file, name}
@@ -2373,7 +2379,7 @@ function renderOpportunityRecommendations(c){
     const pct = (c.fundingCoverage||0) * 100;
     const targetFunding = c.totalBakiDebet * threshold;
     const gap = Math.max(0, targetFunding - c.totalFunding);
-    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar, Perlu Kunjungan):</strong> Kolektibilitas lancar, namun DPK to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan), perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
+    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar, Perlu Kunjungan):</strong> Kolektibilitas lancar, namun DPK to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan), perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan joint visit RM SME–FT untuk menindaklanjuti peluang top up.</div>`);
   }
   // Product cross-sell opportunities are only pushed for Kol 1 accounts —
   // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
@@ -3056,8 +3062,7 @@ function renderCharts(){
   // null) are bucketed — a customer with Baki Debet = 0 (loan fully paid
   // off) has no DPK to Loan ratio to speak of, so folding them into
   // "0%" would overcount that bucket against a population that never had a
-  // ratio in the first place. This keeps the population here consistent
-  // with Top 10 Nasabah Prioritas untuk Review, which uses the same filter.
+  // ratio in the first place.
   const covBuckets = {'0%':0, '>0–5%':0, '>5–10%':0, '>10–25%':0, '>25–50%':0, '>50%':0};
   custs.filter(c => c.fundingCoverage != null).forEach(c => {
     const cov = c.fundingCoverage * 100;
@@ -3075,32 +3080,29 @@ function renderCharts(){
     plugins:[barValueLabelPlugin]
   });
 }
-/* Top 10 Nasabah Prioritas untuk Review — the customers with the lowest
-   DPK to Loan ratio, i.e. the thinnest funding
-   relationship relative to their pinjaman, as a quick-scan table for RM
-   review focus. Only customers with an actual loan (fundingCoverage isn't
-   null) are ranked — a customer with no loan has no DPK to Loan ratio to
-   speak of. Rows are clickable and jump straight to Profil Nasabah. */
+/* Top 10 Nasabah Simpanan — the customers with the largest total simpanan
+   (Tabungan + Giro + Deposito), as a quick-scan ranking for RM review
+   focus. Rows are clickable and jump straight to Profil Nasabah. */
 function renderPriorityReviewTable(){
   const custs = getScopedCustomers();
   const list = custs
-    .filter(c => c.fundingCoverage != null)
     .slice()
-    .sort((a,b) => a.fundingCoverage - b.fundingCoverage)
+    .sort((a,b) => b.totalFunding - a.totalFunding)
     .slice(0, 10);
   $('priorityReviewBody').innerHTML = list.length ? list.map(c => `
     <tr>
       <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
-      <td class="num">${fmtDec(c.fundingCoverage*100,3)}%</td>
+      <td class="num">${fmtRupiah(c.totalFunding)}</td>
     </tr>
-  `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
+  `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pada scope filter saat ini.</td></tr>';
 }
 /* RM Pairing ranking table (Ringkasan 2x2 grid, 4th panel) — groups the
    scoped customer list by RM Pengelola Kredit (RM SME), resolves each one's
    paired RM FT via findPairedRmFt (data-inferred pairing, falling back to
    the hardcoded RM_PAIRING SK-document list), and aggregates customer count
-   + total Baki Debet per pair. Sorted descending by total OS so it reads as
-   a ranking, per the user's explicit request. */
+   + total Baki Debet per pair. Sorted descending by total OS and capped to
+   the top 10 pairs so it reads as a ranking, per the user's explicit
+   request. */
 function renderRmPairingTable(){
   const custs = getScopedCustomers();
   const pairs = new Map(); // rmSme -> {rmFt, count, os}
@@ -3114,7 +3116,8 @@ function renderRmPairingTable(){
   });
   const rows = [...pairs.entries()]
     .map(([rmSme, v]) => ({rmSme, ...v}))
-    .sort((a,b) => b.os - a.os);
+    .sort((a,b) => b.os - a.os)
+    .slice(0, 10);
   $('rmPairingBody').innerHTML = rows.length ? rows.map((r,i) => `
     <tr>
       <td class="num">${i+1}</td>
@@ -3132,7 +3135,11 @@ function exportToExcel(){
   try{
     showToast('Menyiapkan file Excel...', 'info');
     const wb = XLSX.utils.book_new();
-    const custs = getScopedCustomers();
+    // Follows exactly what's currently filtered/searched on the Profil
+    // Nasabah tab (global Kanwil/Kanca/Uker/RM scope + search box + Kol/
+    // Produk filters) rather than only the global scope — otherwise a
+    // narrowed-down search on screen still exports every scoped customer.
+    const custs = Array.isArray(State.filteredCust) ? State.filteredCust : getScopedCustomers();
     const summaryRows = custs.map(c => [
       c.nama, c.cif, c.uker, c.worstKol, c.loans.length, c.totalPlafon, c.totalBakiDebet, c.totalTunggakan,
       c.tabungan.length, c.totalTabungan, c.giro.length, c.totalGiro, c.deposito.length, c.totalDeposito,
@@ -3171,7 +3178,10 @@ function exportToExcel(){
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(OPP_DEFS[k].label));
     });
-    const filename = `ProfilNasabah_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const now = new Date();
+    const pad2 = n => String(n).padStart(2,'0');
+    const stamp = `${pad2(now.getDate())}-${pad2(now.getMonth()+1)}-${now.getFullYear()} ${pad2(now.getHours())}-${pad2(now.getMinutes())}`;
+    const filename = `CustomerRelationshipDashboard_${stamp}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('File Excel berhasil diunduh!', 'success');
   } catch(e){
@@ -3289,6 +3299,16 @@ function generateDummyCustomers(){
       if(i%8===0) edc.push(makeDummyEdc(i, Math.round(plafon*0.05), 40+i, rmFt, ''));
       else qris.push(makeDummyQris(i, Math.round(plafon*0.03), 20+i, rmFt, ''));
     }
+    // A handful of indices (5, 10, 25) land with none of the above at all —
+    // an empty-shell profile (loan only, zero funding products) reads like a
+    // bug in a demo rather than a genuinely thin relationship. Give those a
+    // small token Tabungan just so "Produk Dimiliki" isn't blank — kept
+    // deliberately tiny (not the standard formula above) so it doesn't
+    // artificially push them out of the "Perlu Kunjungan" DPK-to-Loan
+    // bucket they'd otherwise correctly land in.
+    if(!tabungan.length && !giro.length && !deposito.length && !edc.length && !qris.length){
+      tabungan.push(makeDummyTabungan(i, Math.max(2000000, Math.round(bakiScale*0.01)), rmFt));
+    }
     const c = {cif, nama, kanwil:region.kanwil, kanca:region.kanca, uker, loans:[loan], tabungan, giro, deposito, edc, qris};
     c.totalPlafon = plafon;
     c.totalBakiDebet = baki;
@@ -3367,6 +3387,8 @@ function generateDummyFundingOnlyProspects(){
       rekeningKoran: series(35, 60000000, 55000000, 120000000)}, // clears CASA Optimal (12bln): CASA ≥100jt, freq ≥30x
     {cif:'P900002', nama:'HENDRA WIJAYA KUSUMA', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00788234 - FAJAR NUGROHO'], tabungan:1, tabunganSum:95000000, giro:1, giroSum:40000000, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20230608',
       rekeningKoran: series(12, 850000000, 700000000, 55000000)}, // clears Transaksi Optimal (6bln): kredit ≥800jt/bln, CASA ≥50jt
+    {cif:'P900004', nama:'CV BERKAT SEJAHTERA ABADI', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00701122 - EKA WULANDARI'], tabungan:0, tabunganSum:0, giro:1, giroSum:150000000, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20240702',
+      rekeningKoran: series(40, 65000000, 60000000, 130000000)}, // clears CASA Optimal (12bln): CASA ≥100jt, freq ≥30x — 3rd Peluang Pinjaman showcase
     // A third showcase for the fixed Deposito logic (see prospectMap/CI324
     // handling in buildCustomers): a customer who ONLY ever shows up in the
     // Deposito file, matches no other product and no LW321 loan at all — the
