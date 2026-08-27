@@ -89,7 +89,7 @@ body{
 .upload-intro p{color:var(--text-muted);font-size:13px;line-height:1.6}
 .upload-intro code{background:var(--accent-soft);padding:1px 6px;border-radius:4px;color:var(--brand-dark);font-weight:600}
 .slot-grid{
-  display:grid;grid-template-columns:repeat(3, minmax(240px, 300px));
+  display:grid;grid-template-columns:repeat(4, minmax(220px, 260px));
   gap:14px;margin:0 auto 18px;justify-content:center;
 }
 .slot-card{
@@ -348,6 +348,11 @@ table.data-table .ctr{text-align:center}
 }
 /* ===================== REKENING KORAN (Pipeline SME) ===================== */
 .rekkoran-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:8px}
+.partner-table{border-left:4px solid var(--border)}
+.partner-table.success{border-left-color:var(--success)}
+.partner-table.success table.data-table th{background:var(--success)}
+.partner-table.warning{border-left-color:var(--warning)}
+.partner-table.warning table.data-table th{background:var(--warning)}
 .rekkoran-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
 .sim-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;background:var(--warning);color:#fff;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
 .pipeline-badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px}
@@ -365,6 +370,14 @@ table.data-table .ctr{text-align:center}
    checked directly from an opp-entry card (Peluang Pengembangan) without
    needing to navigate away — funding-only prospects in particular have no
    row in the Profil Nasabah table to click into. */
+.back-to-top{
+  display:none;position:fixed;right:22px;bottom:22px;z-index:900;
+  width:42px;height:42px;border-radius:50%;border:none;
+  background:var(--brand-dark);color:#fff;font-size:18px;font-weight:700;
+  box-shadow:var(--shadow-md);cursor:pointer;line-height:1;
+}
+.back-to-top:hover{background:var(--brand-darker)}
+.back-to-top.show{display:block}
 .rk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
 .rk-modal-overlay.show{display:flex}
 .rk-modal-box{background:var(--surface);border-radius:var(--radius);max-width:900px;width:100%;padding:22px 24px;box-shadow:var(--shadow-md);position:relative}
@@ -457,8 +470,7 @@ table.data-table td.empty{text-align:center}
   <section id="uploadSection">
    <div class="upload-wrap">
     <div class="upload-intro">
-      <h2>Customer Relationship Management — Model Pengelolaan Relationship Nasabah Eksisting Berbasis Data</h2>
-      <p><code>LW321 (Pinjaman)</code> wajib diupload — semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap Profil Nasabah, Prioritas Pengelolaan, dan Peluang Pengembangan yang dihasilkan.</p>
+      <p><code>LW321 (Pinjaman)</code> wajib diupload, semua data lain akan di-<em>lookup</em> ke CIF pada LW321 untuk membentuk satu tampilan nasabah terintegrasi (lending, funding, dan transaksi merchant). File lain sifatnya opsional; makin banyak yang diupload, makin lengkap Profil Nasabah, Prioritas Pengelolaan, dan Peluang Pengembangan yang dihasilkan.</p>
     </div>
     <div class="slot-grid" id="slotGrid"></div>
     <div class="upload-actions">
@@ -538,15 +550,15 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartProduk"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Top 10 Nasabah — Baki Debet Pinjaman</h3>
+          <h3>Top 10 Nasabah, Baki Debet Pinjaman</h3>
           <div class="chart-canvas-wrap"><canvas id="chartTopDebet"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Top 10 Nasabah — Total Funding (Tabungan+Giro+Deposito)</h3>
+          <h3>Top 10 Nasabah, Total Funding (Tabungan+Giro+Deposito)</h3>
           <div class="chart-canvas-wrap"><canvas id="chartTopFunding"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Distribusi Deposit to Loan Nasabah</h3>
+          <h3>Distribusi DPK to Loan Nasabah</h3>
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
         <div class="chart-card">
@@ -568,7 +580,7 @@ table.data-table td.empty{text-align:center}
       <div class="panel">
         <div class="panel-header">
           <div>
-            <div class="panel-title">Profil Nasabah — Daftar Nasabah</div>
+            <div class="panel-title">Profil Nasabah: Daftar Nasabah</div>
           </div>
           <div class="panel-actions"><span style="font-size:12px;color:var(--text-muted)" id="custCounter">0 nasabah</span></div>
         </div>
@@ -600,7 +612,7 @@ table.data-table td.empty{text-align:center}
                   <th class="sortable num" data-sort="totalPlafon">Plafon</th>
                   <th class="sortable num" data-sort="totalBakiDebet">Baki Debet</th>
                   <th class="sortable num" data-sort="totalFunding">Total Funding</th>
-                  <th class="sortable num" data-sort="fundingCoverage" title="Deposit to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">Deposit to Loan ℹ️</th>
+                  <th class="sortable num" data-sort="fundingCoverage" title="DPK to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</th>
                   <th>Produk Dimiliki</th>
                   <th class="sortable" data-sort="oppCount" title="Jenis &amp; jumlah peluang pengembangan yang terdeteksi otomatis. Arahkan kursor ke setiap badge untuk detail, atau buka tab Peluang Pengembangan untuk daftar lengkap dan rekomendasinya.">Peluang ℹ️</th>
                 </tr>
@@ -644,6 +656,12 @@ table.data-table td.empty{text-align:center}
               <option value="transaksiOptimal">Pipeline Transaksi Optimal</option>
               <option value="both">Keduanya (CASA + Transaksi Optimal)</option>
             </select>
+            <select class="select" id="oppKolFilter" style="max-width:220px;display:none">
+              <option value="">Semua Kol (3, 4, 5)</option>
+              <option value="3">Kol 3, Kurang Lancar</option>
+              <option value="4">Kol 4, Diragukan</option>
+              <option value="5">Kol 5, Macet</option>
+            </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
         </div>
@@ -654,7 +672,7 @@ table.data-table td.empty{text-align:center}
       <div class="panel">
         <div class="panel-header">
           <div>
-            <div class="panel-title">Prioritas Pengelolaan — Deposit to Loan</div>
+            <div class="panel-title">Prioritas Pengelolaan: DPK to Loan</div>
           </div>
         </div>
         <div class="panel-body">
@@ -670,11 +688,11 @@ table.data-table td.empty{text-align:center}
             </div>
           </div>
           <div class="panel" style="margin-bottom:18px;border-color:var(--brand-mid)">
-            <div class="panel-header"><div class="panel-title">Atur Threshold Deposit to Loan</div></div>
+            <div class="panel-header"><div class="panel-title">Atur Threshold DPK to Loan</div></div>
             <div class="panel-body">
               <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Default 5% mengikuti kebijakan. Ubah kalau ada business focus tertentu yang butuh ambang berbeda.</p>
               <div style="max-width:280px;margin-bottom:14px">
-                <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:4px">Ambang Deposit to Loan</label>
+                <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:4px">Ambang DPK to Loan</label>
                 <input class="input" type="number" id="priorityCovOverride" placeholder="5">
                 <p style="font-size:11.5px;color:var(--text-soft);margin-top:5px;line-height:1.5">Nasabah &lt; nilai ini masuk <strong>Perlu Kunjungan</strong>.</p>
               </div>
@@ -701,7 +719,7 @@ table.data-table td.empty{text-align:center}
           <div class="table-wrap">
             <table class="data-table" id="priorityTable">
               <thead><tr>
-                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">Deposit to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th>
+                <th>Nama Nasabah</th><th class="num">Baki Debet (OS)</th><th class="num">DPK to Loan</th><th>Status</th><th>RM Pengelola Kredit</th><th>RM Pengelola FT</th>
               </tr></thead>
               <tbody id="priorityBody"></tbody>
             </table>
@@ -718,6 +736,7 @@ table.data-table td.empty{text-align:center}
       <div id="rkModalBody"></div>
     </div>
   </div>
+  <button id="btnBackToTop" class="back-to-top no-print" title="Kembali ke atas" aria-label="Kembali ke atas">&uarr;</button>
 </main>
 <script>
 'use strict';
@@ -726,20 +745,20 @@ const $ = id => document.getElementById(id);
    SLOT DEFINITIONS
    ================================================================= */
 const SLOTS = [
-  {key:'LW321', title:'LW321 — Pinjaman', required:true, ext:'.xlsx', match:['LW321','PINJAMAN'],
+  {key:'LW321', title:'LW321, Pinjaman', required:true, ext:'.xlsx', match:['LW321','PINJAMAN'],
    desc:'Kunci utama (key) seluruh dashboard. Kolektibilitas, plafon, baki debet, dan CIF nasabah.'},
-  {key:'DI319', title:'DI319 — Tabungan', required:false, ext:'.xlsx', match:['DI319','TABUNGAN'],
+  {key:'DI319', title:'DI319, Tabungan', required:false, ext:'.xlsx', match:['DI319','TABUNGAN'],
    desc:'Rekening tabungan nasabah, di-lookup berdasarkan CIF ke LW321.'},
-  {key:'DI321', title:'DI321 — Giro', required:false, ext:'.xlsx', match:['DI321','GIRO'],
+  {key:'DI321', title:'DI321, Giro', required:false, ext:'.xlsx', match:['DI321','GIRO'],
    desc:'Rekening giro nasabah, di-lookup berdasarkan CIF ke LW321.'},
-  {key:'CI324', title:'CI324 — Deposito', required:false, ext:'.xlsx', match:['CI324','DEPOSITO'],
+  {key:'CI324', title:'CI324, Deposito', required:false, ext:'.xlsx', match:['CI324','DEPOSITO'],
    desc:'Rekening deposito. File ini tidak memiliki kolom CIF, sehingga dicocokkan berdasarkan kemiripan nama (perlu verifikasi manual).'},
   {key:'EDC', title:'Merchant EDC', required:false, ext:'.csv', match:['EDC'],
    desc:'Data merchant EDC, di-lookup berdasarkan CIFNO ke LW321.'},
   {key:'QRIS', title:'Merchant QRIS', required:false, ext:'.csv', match:['QRIS'],
    desc:'Data merchant QRIS, di-lookup berdasarkan CIF ke LW321.'},
   {key:'PRODUCT_HOLDING', title:'Product Holding', required:false, ext:'.xlsx', match:['PRODUCT HOLDING','PRODUCT_HOLDING','HOLDING'],
-   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah — ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang.'},
+   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah, ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang.'},
 ];
 const State = {
   files:{},        // key -> {file, name}
@@ -1274,7 +1293,7 @@ function generateDummyRekeningKoran(cif, fundingBase){
   // evaluateRekeningKoranPipelines below), so the simulation needs to cover
   // the longer window too, not just 6 months re-used for everything.
   const months = 12;
-  let year = 2026, month = 4; // anchors to the same Mei'25–Apr'26 window as the Buana Paksa real sample
+  let year = 2026, month = 6; // Jul 2025 - Jun 2026, so the last simulated month lines up with the Jun 2026 Product Holding snapshot (see generateDummyProductHolding)
   const chron = [];
   for(let i=0;i<months;i++){ chron.unshift({year, month}); month--; if(month<1){ month=12; year--; } }
   return chron.map(({year, month}) => {
@@ -1473,7 +1492,7 @@ function assignFileToSlot(key, file){
   parseFileForSlot(key, file).then(rows => {
     State.raw[key] = rows;
     statusEl.className = 'slot-status ok';
-    statusEl.textContent = `✓ ${file.name} — ${rows.length.toLocaleString('id-ID')} baris terbaca`;
+    statusEl.textContent = `✓ ${file.name}, ${rows.length.toLocaleString('id-ID')} baris terbaca`;
     card.classList.add('filled');
     updateProcessButton();
   }).catch(err => {
@@ -1842,11 +1861,11 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:        {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Tidak memiliki fasilitas kredit aktif di BRI, DAN tervalidasi rekening koran memenuhi Pipeline CASA Optimal atau Pipeline Transaksi Optimal (Ketentuan Ekspansi Kredit Segmen SME 2026).', rec:'Kandidat pipeline kredit tervalidasi — ratas saldo CASA & frekuensi/volume transaksinya sudah memenuhi ambang batas ekspansi kredit SME, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi). Prioritaskan nasabah badan usaha (PT/CV/UD/dll) dibanding perorangan.'},
-  cashCollateral:  {tag:'CASH COLLATERAL', label:'Cross-sell Cash Collateral', owner:'SME + FT', sub:'Sudah punya Deposito di BRI, namun sedang tidak memiliki fasilitas kredit aktif — deposito ini berpotensi ditawarkan sebagai jaminan Kredit Cash Collateral.', rec:'Tawarkan Kredit Cash Collateral (modal kerja/investasi dengan jaminan deposito) — proses relatif lebih cepat karena jaminannya berupa dana tunai milik nasabah sendiri, namun tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku.'},
-  crossSellMerchant:{tag:'MERCHANT', label:'Cross-sell Merchant (EDC/QRIS)', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun EDC dan/atau QRIS-nya belum lengkap.', rec:'Pola transaksinya sudah setara merchant aktif — tawarkan EDC dan/atau QRIS sesuai yang belum dimiliki, sinyal akuisisi kuat karena aktivitas transaksinya sudah terbukti tinggi.'},
-  quality:         {tag:'QUALITY', label:'Quality — Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2 — perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
-  kolWatch:        {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas — belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:        {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Tidak memiliki fasilitas kredit aktif di BRI, DAN tervalidasi rekening koran memenuhi Pipeline CASA Optimal atau Pipeline Transaksi Optimal (Ketentuan Ekspansi Kredit Segmen SME 2026).', rec:'Kandidat pipeline kredit tervalidasi, ratas saldo CASA & frekuensi/volume transaksinya sudah memenuhi ambang batas ekspansi kredit SME, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi).'},
+  cashCollateral:  {tag:'CASH COLLATERAL', label:'Cross-sell Cash Collateral', owner:'SME + FT', sub:'Sudah punya Deposito di BRI, namun sedang tidak memiliki fasilitas kredit aktif, deposito ini berpotensi ditawarkan sebagai jaminan Kredit Cash Collateral.', rec:'Tawarkan Kredit Cash Collateral (modal kerja/investasi dengan jaminan deposito), proses relatif lebih cepat karena jaminannya berupa dana tunai milik nasabah sendiri, namun tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku.'},
+  crossSellMerchant:{tag:'MERCHANT', label:'Cross-sell Merchant (EDC/QRIS)', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun EDC dan/atau QRIS-nya belum lengkap.', rec:'Pola transaksinya sudah setara merchant aktif, tawarkan EDC dan/atau QRIS sesuai yang belum dimiliki, sinyal akuisisi kuat karena aktivitas transaksinya sudah terbukti tinggi.'},
+  quality:         {tag:'QUALITY', label:'Quality, Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2, perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
+  kolWatch:        {tag:'RECOVERY', label:'Recovery, Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas, belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
 function computeOppCategories(){
   const cats = {};
@@ -2038,7 +2057,7 @@ function applyDefaultRegionSelection(kanwilHint, kancaHint, ukerHint){
    ================================================================= */
 /* Pinjaman/Simpanan/Merchant stat cards — used by both Ringkasan (combined
    with funding-only prospects, i.e. "keseluruhan data") and Prioritas
-   Pengelolaan (LW321-only, since Deposit to Loan only makes sense for
+   Pengelolaan (LW321-only, since DPK to Loan only makes sense for
    customers who actually have a loan). `combineProspects` controls whether
    the funding-only prospect list (nasabah simpanan yang belum punya
    pinjaman — see buildCustomers) is folded into the Simpanan numbers. */
@@ -2072,20 +2091,20 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   const totalFunding = agg.tabungan.sum + agg.giro.sum + agg.deposito.sum;
   const pinjamanCards = [
     {label:'Total Nasabah Pinjaman', value:custs.length, sub:'existing customer dari LW321', cls:'accent'},
-    {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${fmtNum(custs.reduce((s,c)=>s+c.loans.length,0))} fasilitas kredit dari ${fmtNum(custs.length)} nasabah — satu nasabah bisa punya lebih dari satu fasilitas`, cls:''},
+    {label:'Total Plafon Pinjaman', value:fmtRupiah(totalPlafon), sub:`${fmtNum(custs.reduce((s,c)=>s+c.loans.length,0))} fasilitas kredit dari ${fmtNum(custs.length)} nasabah`, cls:''},
     {label:'Total Baki Debet', value:fmtRupiah(totalBaki), sub:'outstanding aktif', cls:''},
   ];
   const simpananCards = [
     {label:'Total Nasabah Simpanan', value:totalNasabahSimpanan, sub:combineProspects?'termasuk nasabah simpanan tanpa pinjaman':'dari nasabah pinjaman ini saja', cls:'accent'},
     {label:'Total Simpanan', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito', cls:'success'},
-    {label:'Tabungan', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening — satu nasabah bisa punya lebih dari satu rekening`, cls:''},
+    {label:'Tabungan', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening, satu nasabah bisa punya lebih dari satu rekening`, cls:''},
     {label:'Giro', value:fmtRupiah(agg.giro.sum), sub:`${fmtNum(agg.giro.count)} rekening`, cls:''},
     {label:'Deposito', value:fmtRupiah(agg.deposito.sum), sub:`${fmtNum(agg.deposito.count)} rekening`, cls:''},
   ];
   const merchantCards = [
-    {label:'Total Nasabah Merchant', value:totalNasabahMerchantCombined, sub:combineProspects?'punya EDC dan/atau QRIS, termasuk nasabah merchant tanpa pinjaman':'punya EDC dan/atau QRIS', cls:'accent'},
-    {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} akumulasi transaksi (sejak merchant terdaftar, bukan periode tertentu)`, cls:''},
-    {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} akumulasi transaksi (sejak merchant terdaftar, bukan periode tertentu)`, cls:''},
+    {label:'Total Nasabah Merchant', value:totalNasabahMerchantCombined, sub:'punya EDC dan/atau QRIS', cls:'accent'},
+    {label:'EDC', value:fmtRupiah(agg.edc.sum), sub:`${fmtNum(agg.edc.count)} merchant · ${fmtNum(agg.edc.trx)} akumulasi transaksi`, cls:''},
+    {label:'QRIS', value:fmtRupiah(agg.qris.sum), sub:`${fmtNum(agg.qris.count)} merchant · ${fmtNum(agg.qris.trx)} akumulasi transaksi`, cls:''},
   ];
   const renderTable = list => `
     <div class="table-wrap"><table class="data-table">
@@ -2175,13 +2194,13 @@ function oppPills(c){
   const kol = c.worstKol;
   const badges = [];
   if(kol >= 3){
-    badges.push({tag:'RECOVERY', title:`Kol ${kol} - ${KOL_LABEL[kol]||''}: kolektibilitas bermasalah — fokus penanganan kredit (monitoring/negosiasi/eksekusi), bukan cross-sell.`});
+    badges.push({tag:'RECOVERY', title:`Kol ${kol} - ${KOL_LABEL[kol]||''}: kolektibilitas bermasalah, fokus penanganan kredit (monitoring/negosiasi/eksekusi), bukan cross-sell.`});
   } else {
     if(kol === 2) badges.push({tag:'MONITORING', title:'Kol 2 - Dalam Perhatian Khusus: perlu dipantau komitmen pembayarannya.'});
-    if(kol === 1 && c.priorityQuad === 'needsVisit') badges.push({tag:'JOINT OTS', title:'Lancar namun Deposit to Loan rendah (Perlu Kunjungan) — peluang kunjungan bersama RM SME & RM FT.'});
+    if(kol === 1 && c.priorityQuad === 'needsVisit') badges.push({tag:'JOINT OTS', title:'Lancar namun DPK to Loan rendah (Perlu Kunjungan): peluang kunjungan bersama RM SME & RM FT.'});
     c.opportunities.filter(k => k !== 'kolWatch' && k !== 'quality').forEach(k => {
       const def = OPP_DEFS[k];
-      badges.push({tag:def.tag, title:`${def.label} — ${def.sub}`});
+      badges.push({tag:def.tag, title:`${def.label}: ${def.sub}`});
     });
   }
   if(!badges.length) return '<span style="color:var(--text-soft)">–</span>';
@@ -2223,8 +2242,11 @@ function renderCustTable(){
   body.innerHTML = rows.join('');
 }
 window.toggleCustRow = function(cif){
-  if(State.expandedRows.has(cif)) State.expandedRows.delete(cif);
-  else State.expandedRows.add(cif);
+  // Accordion behavior: only one Customer 360 detail dropdown open at a
+  // time — opening a new one auto-closes whichever was already open.
+  const wasOpen = State.expandedRows.has(cif);
+  State.expandedRows.clear();
+  if(!wasOpen) State.expandedRows.add(cif);
   renderCustTable();
 };
 /* Jumps to Profil Nasabah from anywhere in the app,
@@ -2241,6 +2263,7 @@ function goToCustomerDetail(cif){
   if(btn) btn.classList.add('active');
   $('panel-customers').classList.add('active');
   $('custSearch').value = cif;
+  State.expandedRows.clear();
   State.expandedRows.add(cif);
   applyCustFilters();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -2309,29 +2332,29 @@ function buildPipelineNearMissNote(c){
   const fmtVal = v => best.unit==='freq' ? `${fmtDec(v)}x/bulan` : fmtRupiah(Math.round(v));
   const gap = Math.max(0, best.min - best.current);
   const actionText = best.unit==='freq'
-    ? 'dorong frekuensi transaksi rekening (migrasi mutasi debit/kredit rutin — payroll, pembayaran vendor, dsb — ke rekening BRI)'
+    ? 'dorong frekuensi transaksi rekening (migrasi mutasi debit/kredit rutin, payroll, pembayaran vendor, dsb, ke rekening BRI)'
     : 'dorong top up CASA (Tabungan/Giro), misalnya mengarahkan penempatan dana idle atau hasil penjualan ke rekening BRI';
   const targetText = hasActiveLoan ? 'kandidat Cross-sell Merchant (EDC/QRIS) baru' : 'kandidat Peluang Pinjaman baru';
-  return `<div class="rec-note"><strong>Pipeline ${escapeHtml(best.pipeline)} — hampir tercapai (${Math.round(best.ratio*100)}%):</strong> ${escapeHtml(best.metric)} nasabah ini saat ini ${fmtVal(best.current)}, masih kurang ${fmtVal(gap)} lagi dari ambang batas ${fmtVal(best.min)}. Rekomendasi: ${actionText} agar nasabah ini bisa masuk sebagai ${targetText}.</div>`;
+  return `<div class="rec-note"><strong>Pipeline ${escapeHtml(best.pipeline)}, hampir tercapai (${Math.round(best.ratio*100)}%):</strong> ${escapeHtml(best.metric)} nasabah ini saat ini ${fmtVal(best.current)}, masih kurang ${fmtVal(gap)} lagi dari ambang batas ${fmtVal(best.min)}. Rekomendasi: ${actionText} agar nasabah ini bisa masuk sebagai ${targetText}.</div>`;
 }
 function renderOpportunityRecommendations(c){
   const kol = c.worstKol;
   const notes = [];
   if(kol >= 3){
     const kolLabel = KOL_LABEL[kol] || 'bermasalah';
-    notes.push(`<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f"><strong>Recovery (Kol ${kol} - ${escapeHtml(kolLabel)}):</strong> Kolektibilitas sudah bermasalah — fokus utamanya penanganan kredit bermasalah (monitoring intensif, negosiasi restrukturisasi, atau proses eksekusi jaminan), bukan cross-sell produk baru.</div>`);
+    notes.push(`<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f"><strong>Recovery (Kol ${kol} - ${escapeHtml(kolLabel)}):</strong> Kolektibilitas sudah bermasalah, fokus utamanya penanganan kredit bermasalah (monitoring intensif, negosiasi restrukturisasi, atau proses eksekusi jaminan), bukan cross-sell produk baru.</div>`);
   } else if(kol === 2){
     notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
   } else if(kol === 1 && c.priorityQuad === 'needsVisit'){
     // Instead of a vague "kunjungan bersama untuk memperdalam relationship"
     // (too general to act on), compute exactly how much CASA/funding needs
-    // to be topped up to clear the Deposit to Loan threshold, and say that
+    // to be topped up to clear the DPK to Loan threshold, and say that
     // directly — RM should walk in already knowing the number to ask for.
     const threshold = (State.priority && State.priority.p25Cov != null) ? State.priority.p25Cov : 0.05;
     const pct = (c.fundingCoverage||0) * 100;
     const targetFunding = c.totalBakiDebet * threshold;
     const gap = Math.max(0, targetFunding - c.totalFunding);
-    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan) — perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
+    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun DPK to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan), perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
   }
   // Product cross-sell opportunities are only pushed for Kol 1 accounts —
   // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
@@ -2344,7 +2367,23 @@ function renderOpportunityRecommendations(c){
   }
   if(!notes.length){
     const nearMiss = kol < 3 ? buildPipelineNearMissNote(c) : null;
-    notes.push(nearMiss || '<div class="rec-note">Tidak ada peluang atau tindakan khusus yang terdeteksi otomatis untuk nasabah ini pada periode data saat ini.</div>');
+    if(nearMiss){
+      notes.push(nearMiss);
+    } else if(kol === 1 && (c.totalBakiDebet||0) > 0){
+      // Still has an active loan, already Kol 1, DPK to Loan already sehat,
+      // and no near-miss pipeline either — rather than a flat "nothing
+      // detected", surface the underlying health picture (DPK to Loan +
+      // all 3 Pipeline SME statuses) so RM knows this relationship is
+      // solid and what to keep pushing toward a future suplesi (perpanjangan/
+      // penambahan plafon), not a dead end.
+      const threshold = (State.priority && State.priority.p25Cov != null) ? State.priority.p25Cov : 0.05;
+      const pct = (c.fundingCoverage||0) * 100;
+      const ev = c.pipelineEval || {};
+      const statusText = (label, ok) => `${label}: <strong>${ok ? 'sudah memenuhi' : 'belum memenuhi'}</strong>`;
+      notes.push(`<div class="rec-note"><strong>Maintain & Monitoring:</strong> Kolektibilitas lancar dan DPK to Loan sudah sehat (${fmtDec(pct)}%, di atas ambang batas ${fmtDec(threshold*100,0)}%). Status Pipeline SME saat ini, ${statusText('CASA Optimal', ev.casaOptimal)}, ${statusText('Nasabah Merchant', ev.merchant)}, ${statusText('Transaksi Optimal', ev.transaksiOptimal)}. Belum ada peluang cross-sell baru yang terdeteksi untuk periode ini, maintain relationship dan terus dorong transaksi/CASA agar makin kuat sebagai kandidat suplesi (perpanjangan/penambahan plafon) ke depannya.</div>`);
+    } else {
+      notes.push('<div class="rec-note">Tidak ada peluang atau tindakan khusus yang terdeteksi otomatis untuk nasabah ini pada periode data saat ini.</div>');
+    }
   }
   return notes.join('');
 }
@@ -2378,12 +2417,6 @@ function renderRekeningKoranSection(c){
   // Only the simulated case gets a disclosure tag — real data doesn't need
   // a "this is real" badge, only fabricated numbers need the warning label.
   const isReal = entries.length>0 && entries.every(e => e.simulated===false);
-  // c.worstKol is only meaningful for an actual loan customer — a funding-
-  // only prospect (never in LW321, no loan at all) has no Kol to speak of,
-  // so this note would otherwise wrongly claim "bukan Kol 1" for every
-  // prospect shown via the Rekening Koran modal (see showRekeningKoranModal).
-  const notKol1Note = (c.worstKol != null && c.worstKol !== 1)
-    ? '<div class="upload-hint" style="margin-top:6px">Kolektibilitas nasabah ini bukan Kol 1 — hasil di bawah dihitung untuk referensi, tapi tidak ditampilkan sebagai peluang baru (lihat Recovery/Quality) sampai kembali Lancar.</div>' : '';
   function badge(key, thr, detailLabel, months){
     const pass = ev[key];
     return `
@@ -2399,28 +2432,27 @@ function renderRekeningKoranSection(c){
   const merchantBadge = badge('merchant', PIPELINE_THRESHOLDS.merchant,
     `Ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp100 juta/bulan) · Frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan (min. 100x)`, ev.monthsShortWindow||0);
   const transBadge = badge('transaksiOptimal', PIPELINE_THRESHOLDS.transaksiOptimal,
-    `Kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan (min. Rp800 juta) · CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp50 juta) — umur rekening perlu verifikasi manual`, ev.monthsShortWindow||0);
+    `Kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan (min. Rp800 juta) · CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp50 juta), umur rekening perlu verifikasi manual`, ev.monthsShortWindow||0);
 
   const partners = lookupRealPartners(c.nama);
-  function partnerTable(title, list){
+  function partnerTable(title, list, variant){
     const rows = list.map(p => `<tr><td>${escapeHtml(p.name)}</td><td class="num">${fmtNum(p.freq)}x</td><td class="num">${fmtRupiah(p.total)}</td></tr>`).join('');
-    return `<div class="table-wrap" style="margin-top:8px"><table class="data-table"><thead><tr><th colspan="3">${title}</th></tr><tr><th>Nama</th><th class="num">Frekuensi</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<div class="table-wrap partner-table ${variant}" style="margin-top:8px"><table class="data-table"><thead><tr><th colspan="3">${title}</th></tr><tr><th>Nama</th><th class="num">Frekuensi</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   let partnerBlock;
   if(partners){
-    partnerBlock = partnerTable('Top 5 Pengirim Dana Terbesar (indikasi Buyer)', partners.topBuyers) + partnerTable('Top 5 Penerima Dana Terbesar (indikasi Supplier)', partners.topSuppliers);
+    partnerBlock = partnerTable('Top 5 Pengirim Dana Terbesar (indikasi Buyer)', partners.topBuyers, 'success') + partnerTable('Top 5 Penerima Dana Terbesar (indikasi Supplier)', partners.topSuppliers, 'warning');
   } else if(isReal){
-    partnerBlock = '<div class="upload-hint" style="margin-top:8px">Top 5 buyer/supplier belum bisa ditampilkan untuk nasabah ini — mayoritas transaksi pada mutasinya berupa setoran tunai/kode settlement tanpa nama pihak yang jelas, bukan transfer bernama, sehingga tidak cukup andal untuk dijadikan daftar top 5.</div>';
+    partnerBlock = '<div class="upload-hint" style="margin-top:8px">Top 5 buyer/supplier belum bisa ditampilkan untuk nasabah ini, mayoritas transaksi pada mutasinya berupa setoran tunai/kode settlement tanpa nama pihak yang jelas, bukan transfer bernama, sehingga tidak cukup andal untuk dijadikan daftar top 5.</div>';
   } else {
-    partnerBlock = '<div class="upload-hint" style="margin-top:8px">Top 5 buyer/supplier butuh data mutasi asli per transaksi — belum tersedia untuk data simulasi.</div>';
+    partnerBlock = '<div class="upload-hint" style="margin-top:8px">Top 5 buyer/supplier butuh data mutasi asli per transaksi, belum tersedia untuk data simulasi.</div>';
   }
 
   return `
     <div class="rekkoran-box">
       <div class="rekkoran-head">
         <div>
-          <strong>Rekening Koran / Mutasi — ${n} Bulan Terakhir${isReal ? '' : ' <span class="sim-tag">SIMULASI</span>'}</strong>
-          <div class="upload-hint">${isReal ? '' : 'Dashboard belum bisa menarik rekening koran nasabah secara langsung/massal — angka di bawah adalah <strong>simulasi</strong> (diturunkan dari saldo funding yang sudah tercatat), sebagai contoh cara kerja validasi Pipeline SME kalau data mutasi asli sudah bisa ditarik otomatis.'}${notKol1Note}</div>
+          <strong>Rekening Koran / Mutasi, ${n} Bulan Terakhir${isReal ? '' : ' <span class="sim-tag">SIMULASI</span>'}</strong>
         </div>
       </div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Bulan</th><th class="num">Freq Transaksi</th><th class="num">Total Kredit</th><th class="num">Total Debit</th><th class="num">Ratas Saldo (CASA)</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -2457,24 +2489,36 @@ function fmtHoldingMetric(label, v){
   return cleanStr(v) || '-';
 }
 function renderProductHoldingSection(cif){
-  const rec = State.productHolding && State.productHolding.get(cif);
-  if(!rec) return `<div class="upload-hint" style="margin-top:8px">Belum ada data Product Holding untuk nasabah ini (file Product Holding bersifat opsional).</div>`;
+  // Feature is opt-in: if no Product Holding file has ever been uploaded
+  // (real or demo), don't show the group at all anywhere in the app.
+  if(!State.productHolding || State.productHolding.size === 0) return '';
+  const rec = State.productHolding.get(cif);
+  if(!rec){
+    return `
+    <div class="rekkoran-box" style="margin-top:12px">
+      <div class="rekkoran-head"><div><strong>Product Holding</strong></div></div>
+      <div class="upload-hint">Belum ada data Product Holding untuk nasabah ini.</div>
+    </div>`;
+  }
   const held = (rec.groups||[]).filter(g => g.flag);
-  const rows = held.map(g => {
+  // Grid of detail-field cards, same pattern used everywhere else in the
+  // Customer 360 view — reflows naturally with the rest of the page/modal
+  // instead of sitting in its own scrollable table.
+  const fields = held.map(g => {
     const metricStr = Object.entries(g.metrics||{})
       .map(([label,v]) => `${escapeHtml(label.replace(/_/g,' '))}: ${fmtHoldingMetric(label, v)}`)
-      .join(' &middot; ');
-    return `<tr><td>${escapeHtml(g.category.replace(/^\*/,''))}</td><td>${metricStr || '<span class="empty">Aktif</span>'}</td></tr>`;
-  }).join('') || '<tr><td colspan="2" class="empty">Nasabah ini belum tercatat memiliki produk apa pun pada data Product Holding.</td></tr>';
+      .join(', ');
+    return `<div class="detail-field"><span class="lbl">${escapeHtml(g.category.replace(/^\*/,''))}</span><span class="val">${metricStr || 'Aktif'}</span></div>`;
+  }).join('') || `<div class="upload-hint">Nasabah ini belum tercatat memiliki produk apa pun pada data Product Holding.</div>`;
   return `
     <div class="rekkoran-box" style="margin-top:12px">
       <div class="rekkoran-head">
         <div>
-          <strong>Product Holding${rec.periode ? ' — Periode ' + escapeHtml(rec.periode) : ''}</strong>
-          <div class="upload-hint">Total produk dimiliki: <strong>${fmtNum(rec.totalProduk||held.length)}</strong>${rec.tf ? ` &middot; TF: ${fmtRupiah(rec.tf)}` : ''}</div>
+          <strong>Product Holding${rec.periode ? ', Periode ' + escapeHtml(rec.periode) : ''}</strong>
+          <div class="upload-hint">Total produk dimiliki: <strong>${fmtNum(rec.totalProduk||held.length)}</strong>${rec.tf ? `, TF: ${fmtRupiah(rec.tf)}` : ''}</div>
         </div>
       </div>
-      <div class="table-wrap"><table class="data-table"><thead><tr><th>Produk</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="detail-grid" style="margin-top:10px">${fields}</div>
     </div>
   `;
 }
@@ -2550,7 +2594,7 @@ function renderCustomerDetail(c){
             <div><div class="f-label">Unit Kerja</div><div class="f-value">${escapeHtml(c.uker)}</div></div>
             <div><div class="f-label">Kolektibilitas Terburuk</div><div class="f-value">${c.worstKol} - ${KOL_LABEL[c.worstKol]}</div></div>
             <div><div class="f-label">RM Pengelola Kredit</div><div class="f-value">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</div></div>
-            <div><div class="f-label" title="Deposit to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">Deposit to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</div></div>
+            <div><div class="f-label" title="DPK to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</div></div>
           </div>
           <div class="product-pills">
             <span class="pill ${c.loans.length?'on':''}">Pinjaman ${c.loans.length}</span>
@@ -2562,7 +2606,7 @@ function renderCustomerDetail(c){
           </div>
         </div>
       </div>
-      <div class="detail-section-title">Peluang Pengembangan — Rekomendasi</div>
+      <div class="detail-section-title">Peluang Pengembangan: Rekomendasi</div>
       ${oppHtml}
       <div class="detail-section-title">Fasilitas Kredit (${c.loans.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Jenis</th><th>Kol</th><th class="num">Plafon</th><th class="num">Baki Debet</th><th class="num">Tunggakan</th><th class="ctr">Rate</th><th>Jatuh Tempo</th><th>RM Pengelola Kredit</th></tr></thead><tbody>${loansRows}</tbody></table></div>
@@ -2570,13 +2614,12 @@ function renderCustomerDetail(c){
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Produk</th><th class="num">Saldo</th><th class="ctr">Tgl Buka</th><th>RM Pengelola FT</th></tr></thead><tbody>${tabunganRows}</tbody></table></div>
       <div class="detail-section-title">Giro (${c.giro.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th>Produk</th><th class="num">Saldo</th><th class="ctr">Tgl Buka</th><th>RM Pengelola FT</th></tr></thead><tbody>${giroRows}</tbody></table></div>
-      <div class="detail-section-title">Deposito (${c.deposito.length}) — dicocokkan berdasarkan nama (tanpa CIF)</div>
+      <div class="detail-section-title">Deposito (${c.deposito.length}), dicocokkan berdasarkan nama (tanpa CIF)</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>No Rekening</th><th class="num">Nominal</th><th>Rate</th><th>Jatuh Tempo</th><th>RM Pengelola FT</th></tr></thead><tbody>${depositoRows}</tbody></table></div>
       <div class="detail-section-title">Merchant EDC / QRIS (${c.edc.length + c.qris.length})</div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Tipe</th><th>Nama Merchant</th><th>MID</th><th class="num ctr">Transaksi</th><th class="num">Volume</th><th class="ctr">RM Pengelola FT</th></tr></thead><tbody>${merchantRows}</tbody></table></div>
-      <div class="detail-section-title">Rekening Koran — Pipeline SME (Ketentuan Ekspansi Kredit 2026)</div>
+      <div class="detail-section-title">Rekening Koran, Pipeline SME (Ketentuan Ekspansi Kredit 2026)</div>
       ${renderRekeningKoranSection(c)}
-      <div class="detail-section-title">Product Holding</div>
       ${renderProductHoldingSection(c.cif)}
     </div>
   `;
@@ -2622,7 +2665,7 @@ function looksLikeBadanUsaha(nama){
    used elsewhere in the app (Customer 360). */
 function buildOppInsightNote(c, key){
   if(c.worstKol >= 3){
-    return `<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f;margin-top:8px"><strong>Recovery (Kol ${c.worstKol} - ${KOL_LABEL[c.worstKol]||''}):</strong> Kolektibilitas sedang bermasalah — bukan waktunya cross-sell, fokus dulu ke penanganan kredit (monitoring/restrukturisasi/eksekusi).</div>`;
+    return `<div class="rec-note" style="border-left-color:var(--danger);background:#fdeceb;color:#8a2f2f;margin-top:8px"><strong>Recovery (Kol ${c.worstKol} - ${KOL_LABEL[c.worstKol]||''}):</strong> Kolektibilitas sedang bermasalah, bukan waktunya cross-sell, fokus dulu ke penanganan kredit (monitoring/restrukturisasi/eksekusi).</div>`;
   }
   if(key === 'quality'){
     // 'quality' entries are always Kol 2 (Kol ≥3 goes to 'kolWatch' /
@@ -2641,11 +2684,11 @@ function buildOppInsightNote(c, key){
     const which = [];
     if(ev.casaOptimal) which.push(`<strong>Pipeline CASA Optimal</strong> (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)`);
     if(ev.transaksiOptimal) which.push(`<strong>Pipeline Transaksi Optimal</strong> (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`);
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi rekening koran memenuhi ${which.join(' dan ')} — kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi rekening koran memenuhi ${which.join(' dan ')}, kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
   }
   if(key === 'crossSellMerchant'){
     const missing = [c.edc.length===0 && 'EDC', c.qris.length===0 && 'QRIS'].filter(Boolean).join(' dan ');
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi <strong>Pipeline Nasabah Merchant</strong> — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi <strong>Pipeline Nasabah Merchant</strong> (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan), tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
   }
   // Note: 'cashCollateral' used to be handled here too, but it now flows
   // through buildCashCollateralOppList/buildProspectOppNote instead (see
@@ -2663,21 +2706,21 @@ function buildProspectOppNote(p, key){
   const namaStr = escapeHtml(p.nama || 'Nasabah ini');
   const produkStr = p.produk.map(x=>escapeHtml(x)).join(', ');
   const cifNote = p.noCifMatch
-    ? ' Catatan: nasabah ini hanya ditemukan di data Deposito (tidak ada No CIF/cabang yang cocok di sumber data lain) — cocokkan manual berdasarkan nama sebelum follow-up.'
+    ? ' Catatan: nasabah ini hanya ditemukan di data Deposito (tidak ada No CIF/cabang yang cocok di sumber data lain), cocokkan manual berdasarkan nama sebelum follow-up.'
     : '';
   if(key === 'cashCollateral'){
-    const kolNote = p.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
-    return `<div class="rec-note" style="margin-top:8px">${namaStr} punya Deposito senilai ${fmtRupiah(p.depositoSum||0)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — deposito ini berpotensi ditawarkan sebagai jaminan untuk Kredit Cash Collateral (proses tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku)${kolNote}${cifNote}</div>`;
+    const kolNote = p.worstKol === 2 ? ' (perhatikan Kol 2, tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
+    return `<div class="rec-note" style="margin-top:8px">${namaStr} punya Deposito senilai ${fmtRupiah(p.depositoSum||0)} di BRI dan sedang tidak memiliki fasilitas kredit aktif, deposito ini berpotensi ditawarkan sebagai jaminan untuk Kredit Cash Collateral (proses tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku)${kolNote}${cifNote}</div>`;
   }
   const statusStr = p.everHadLoan
-    ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)'
+    ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas, cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)'
     : 'belum pernah tercatat punya fasilitas kredit';
   const ev = p.pipelineEval || {};
   const which = [
     ev.casaOptimal && `<strong>Pipeline CASA Optimal</strong> (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)`,
     ev.transaksiOptimal && `<strong>Pipeline Transaksi Optimal</strong> (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`,
   ].filter(Boolean);
-  return `<div class="rec-note" style="margin-top:8px">${namaStr} sudah punya relationship <strong>${produkStr}</strong> di BRI, ${statusStr}, dan tervalidasi rekening koran memenuhi ${which.join(' dan ') || 'kriteria Pipeline SME'} — kandidat pipeline kredit untuk RM SME.${cifNote}</div>`;
+  return `<div class="rec-note" style="margin-top:8px">${namaStr} sudah punya relationship <strong>${produkStr}</strong> di BRI, ${statusStr}, dan tervalidasi rekening koran memenuhi ${which.join(' dan ') || 'kriteria Pipeline SME'}, kandidat pipeline kredit untuk RM SME.${cifNote}</div>`;
 }
 /* "Pinjaman" (RM SME angle) has a different data shape (funding-only
    prospects: cif/nama/jenis/balance/openDt/ukerCode) than every other
@@ -2704,6 +2747,9 @@ function selectOpp(k, resetPinjamanPage=true){
   // the other" of those two pipelines (Cash Collateral qualifies on a
   // Deposito+no-loan basis, unrelated to either pipeline).
   $('oppPinjamanPipelineFilter').style.display = k === 'pinjaman' ? '' : 'none';
+  // Recovery (kolWatch) is always Kol 3-5 — let RM narrow to one specific
+  // Kol, default (empty) shows all of Kol 3, 4, 5 together.
+  $('oppKolFilter').style.display = k === 'kolWatch' ? '' : 'none';
   if(k === 'pinjaman' || k === 'cashCollateral'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
@@ -2762,7 +2808,7 @@ function selectOpp(k, resetPinjamanPage=true){
     const loadMore = list.length > pageSize
       ? `<div style="text-align:center;padding:14px"><button class="btn btn-outline btn-sm" onclick="growPinjamanOppPage()">Muat ${OPP_DISPLAY_CAP} Lagi</button></div>` : '';
     $('oppDetail').innerHTML = `
-      <div class="rec-note"><strong>${def.label}</strong> — ${def.rec}</div>
+      <div class="rec-note"><strong>${def.label}:</strong> ${def.rec}</div>
       <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} nasabah.</div>
       <div class="opp-entry-list">${entries || '<div class="opp-detail-empty">Tidak ada nasabah yang cocok.</div>'}</div>
       ${loadMore}
@@ -2770,6 +2816,10 @@ function selectOpp(k, resetPinjamanPage=true){
     return;
   }
   if(q) list = list.filter(c => `${c.nama} ${c.cif}`.toLowerCase().includes(q));
+  if(k === 'kolWatch'){
+    const kolFilter = $('oppKolFilter').value;
+    if(kolFilter) list = list.filter(c => String(c.worstKol) === kolFilter);
+  }
   const entries = list.slice().sort((a,b)=>b.totalBakiDebet-a.totalBakiDebet).map(c => `
     <div class="opp-entry">
       <div class="opp-entry-head">
@@ -2793,7 +2843,7 @@ function selectOpp(k, resetPinjamanPage=true){
     </div>
   `).join('');
   $('oppDetail').innerHTML = `
-    <div class="rec-note"><strong>${def.label}</strong> — ${def.rec}</div>
+    <div class="rec-note"><strong>${def.label}:</strong> ${def.rec}</div>
     <div class="opp-entry-list">${entries || '<div class="opp-detail-empty">Tidak ada nasabah yang cocok.</div>'}</div>
   `;
 }
@@ -2807,22 +2857,23 @@ $('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(S
 $('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, true); });
 $('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, false); });
 $('oppPinjamanPipelineFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
+$('oppKolFilter').addEventListener('change', () => { if(State.activeOpp==='kolWatch') selectOpp('kolWatch', true); });
 /* ===================================================================
-   PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
+   PRIORITAS KUNJUNGAN — DPK to Loan (two-tier, no matrix)
    ---------------------------------------------------------------
-   Deposit to Loan now uses a FIXED policy threshold (<5% vs ≥5%), not a
+   DPK to Loan now uses a FIXED policy threshold (<5% vs ≥5%), not a
    portfolio percentile — so a 2x2 matrix built from two relative cut-offs
    no longer makes sense (one axis isn't relative anymore). The model is
    simpler instead:
-     1. Split into two groups by Deposit to Loan: "Perlu Kunjungan" (<5%)
+     1. Split into two groups by DPK to Loan: "Perlu Kunjungan" (<5%)
         vs "Sehat" (≥5%).
      2. Within "Perlu Kunjungan", rank by OS (Baki Debet) descending — OS
         is used purely to ORDER priority within that group, not as a
         second classification cut-off.
    ================================================================= */
 const QUAD_DEFS = {
-  needsVisit: {label:'Perlu Kunjungan', color:'#d64545', badgeCls:'k-5', sub:'Deposit to Loan di bawah threshold — funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
-  sehat:      {label:'Sehat',           color:'#0a9d6e', badgeCls:'k-1', sub:'Deposit to Loan sudah di atas threshold — funding relationship sudah sehat. Fokus maintain & deepen relationship, bukan prioritas kunjungan utama.'},
+  needsVisit: {label:'Perlu Kunjungan', color:'#d64545', badgeCls:'k-5', sub:'DPK to Loan di bawah threshold, funding relationship masih rendah dibanding OS pinjaman. Diurutkan dari OS terbesar sebagai prioritas kunjungan utama.'},
+  sehat:      {label:'Sehat',           color:'#0a9d6e', badgeCls:'k-1', sub:'DPK to Loan sudah di atas threshold, funding relationship sudah sehat. Fokus maintain & deepen relationship, bukan prioritas kunjungan utama.'},
 };
 const QUAD_COLOR = {needsVisit:'#d64545', sehat:'#0a9d6e'};
 function percentile(sortedArr, p){
@@ -2839,7 +2890,7 @@ function computePriorityData(){
   const custs = getScopedCustomers();
   const osArr = custs.map(c => c.totalBakiDebet).sort((a,b)=>a-b);
   const covArr = custs.map(c => c.fundingCoverage ?? 0).sort((a,b)=>a-b);
-  const COV_FIXED_THRESHOLD = 0.05; // Deposit to Loan policy threshold: <5% vs ≥5%.
+  const COV_FIXED_THRESHOLD = 0.05; // DPK to Loan policy threshold: <5% vs ≥5%.
   const ov = State.priorityOverride || {cov:null};
   const p25Cov = (ov.cov != null && !isNaN(ov.cov)) ? ov.cov/100 : COV_FIXED_THRESHOLD;
   const usingOverride = ov.cov != null && !isNaN(ov.cov);
@@ -2913,16 +2964,16 @@ function renderPriorityTab(){
   renderPinjamanSimpananMerchantStats(getScopedCustomers(), {pinjaman:'priorityStatsPinjaman', simpanan:'priorityStatsSimpanan'}, false);
   renderKpiDplCard(getScopedCustomers());
 }
-/* Makes explicit whether the Deposit to Loan threshold is currently the
+/* Makes explicit whether the DPK to Loan threshold is currently the
    default fixed 5% or a manual override. */
 function renderPriorityBasisCard(){
   const p = State.priority;
   $('priorityBasisContent').innerHTML = `
-    <span class="label-tag">Threshold Deposit to Loan</span>
+    <span class="label-tag">Threshold DPK to Loan</span>
     <div class="cname" style="font-size:16px">${p.usingOverride ? 'Manual' : 'Default Tetap'}: &lt; ${fmtDec(p.p25Cov*100)}%</div>
     <div class="customer-hero-grid" style="margin-top:10px">
-      <div><div class="f-label">Perlu Kunjungan</div><div class="f-value">Deposit to Loan &lt; ${fmtDec(p.p25Cov*100)}%, diurutkan OS terbesar</div></div>
-      <div><div class="f-label">Sehat</div><div class="f-value">Deposit to Loan ≥ ${fmtDec(p.p25Cov*100)}%</div></div>
+      <div><div class="f-label">Perlu Kunjungan</div><div class="f-value">DPK to Loan &lt; ${fmtDec(p.p25Cov*100)}%, diurutkan OS terbesar</div></div>
+      <div><div class="f-label">Sehat</div><div class="f-value">DPK to Loan ≥ ${fmtDec(p.p25Cov*100)}%</div></div>
     </div>
   `;
 }
@@ -2937,13 +2988,13 @@ $('btnApplyPriorityOverride').addEventListener('click', () => {
   const covVal = $('priorityCovOverride').value;
   State.priorityOverride = { cov: covVal !== '' ? Number(covVal) : null };
   renderPriorityTab();
-  showToast('Ambang Deposit to Loan manual diterapkan.', 'success');
+  showToast('Ambang DPK to Loan manual diterapkan.', 'success');
 });
 $('btnResetPriorityOverride').addEventListener('click', () => {
   $('priorityCovOverride').value = '';
   State.priorityOverride = {cov:null};
   renderPriorityTab();
-  showToast('Kembali ke threshold default Deposit to Loan (5%).', 'info');
+  showToast('Kembali ke threshold default DPK to Loan (5%).', 'info');
 });
 /* ===================================================================
    CHARTS
@@ -3015,12 +3066,12 @@ function renderCharts(){
     data:{labels:topFunding.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Total Funding', data:topFunding.map(c=>c.totalFunding), backgroundColor:'#2e78d6', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
   });
-  // Deposit to Loan bucketed by range, so it's obvious at a glance how many
+  // DPK to Loan bucketed by range, so it's obvious at a glance how many
   // customers have little-to-no funding relationship vs. a well-covered one.
   // 0–10% split into 0–5%/5–10% to line up with the <5%/≥5% threshold above.
   // Only customers with an actual outstanding loan (fundingCoverage isn't
   // null) are bucketed — a customer with Baki Debet = 0 (loan fully paid
-  // off) has no Deposit to Loan ratio to speak of, so folding them into
+  // off) has no DPK to Loan ratio to speak of, so folding them into
   // "0%" would overcount that bucket against a population that never had a
   // ratio in the first place. This keeps the population here consistent
   // with Top 10 Nasabah Prioritas untuk Review, which uses the same filter.
@@ -3042,7 +3093,7 @@ function renderCharts(){
   });
 }
 /* Top 10 Nasabah Prioritas untuk Review — the customers with the lowest
-   DPK to Loan (Deposit to Loan) ratio, i.e. the thinnest funding
+   DPK to Loan ratio, i.e. the thinnest funding
    relationship relative to their pinjaman, as a quick-scan table for RM
    review focus. Only customers with an actual loan (fundingCoverage isn't
    null) are ranked — a customer with no loan has no DPK to Loan ratio to
@@ -3077,7 +3128,7 @@ function exportToExcel(){
     ]);
     const summaryHeader = ['Nama Nasabah','CIF','Unit Kerja','Kol Terburuk','Jml Fasilitas','Total Plafon','Total Baki Debet','Total Tunggakan',
       'Jml Tabungan','Saldo Tabungan','Jml Giro','Saldo Giro','Jml Deposito','Nominal Deposito','Total Funding','Jml Merchant','Volume Merchant',
-      'Deposit to Loan (%)','Jml Peluang','Detail Peluang'];
+      'DPK to Loan (%)','Jml Peluang','Detail Peluang'];
     const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryRows]);
     wsSummary['!cols'] = summaryHeader.map(h=>({wch:Math.max(14,h.length+2)}));
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Profil Nasabah');
@@ -3284,7 +3335,7 @@ function generateDummyCustomers(){
 function generateDummyFundingOnlyProspects(){
   const mk = (year,month,freq,credit,debit,casa) => ({year,month,freq,totalCredit:credit,totalDebit:debit,avgDailyBalance:casa,simulated:true});
   const series = (freq,credit,debit,casa) => {
-    const out = []; let y=2026, m=4;
+    const out = []; let y=2026, m=6; // Jul 2025 - Jun 2026, matching generateDummyRekeningKoran's window
     for(let i=0;i<12;i++){ out.unshift(mk(y,m,freq,credit,debit,casa)); m--; if(m<1){ m=12; y--; } }
     return out;
   };
@@ -3313,30 +3364,85 @@ function generateDummyFundingOnlyProspects(){
    deterministic-simulation approach as generateDummyRekeningKoran, so the
    dummy dashboard (and Playwright regression tests) can exercise the
    Product Holding rendering (modal + Customer 360 detail) without a real
-   monthly upload. Shape matches parseProductHoldingAOA's real output. */
-const PRODUCT_HOLDING_DEMO_CATEGORIES = [
-  {category:'TABUNGAN BASIC', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
-  {category:'GIRO BASIC', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
-  {category:'DEPOSITO', metrics:['JUMLAH_REKENING','BALANCE','ADB']},
-  {category:'KARTU KREDIT', metrics:[]},
-  {category:'BRIMO', metrics:[]},
-  {category:'EDC', metrics:[]},
-  {category:'QRIS', metrics:[]},
-  {category:'ASURANSI MIKRO', metrics:['JUMLAH_POLIS','PREMI','FBI']},
-];
-function generateDummyProductHolding(cif){
+   monthly upload. Shape matches parseProductHoldingAOA's real output.
+   Kept internally consistent with the simulated Rekening Koran rather than
+   independently randomized: for the 8 CASA/DPK-bearing categories that can
+   carry a running balance (BRITAMA BISNIS/VALAS, GIRO BASIC/VALAS,
+   PRIORITAS, PRIVATE, TABUNGAN BASIC, TABUNGAN RENCANA), whichever of them
+   are held always sum, exactly, to that customer's simulated Jun 2026 CASA
+   balance (the last entry of the Jul 2025 - Jun 2026 rekening koran
+   window) — never a second, disconnected number. Wealth tier is derived
+   from that same balance: >= Rp15 miliar -> Private, >= Rp1 miliar ->
+   Prioritas, otherwise neither. */
+const PRODUCT_HOLDING_METRIC_DEFS = {
+  'ASURANSI MIKRO': ['JUMLAH_POLIS','PREMI','FBI'],
+  'DEPOSITO': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'BRITAMA BISNIS': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'BRITAMA VALAS': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'GIRO BASIC': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'GIRO VALAS': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'TABUNGAN BASIC': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'TABUNGAN RENCANA': ['JUMLAH_REKENING','BALANCE','ADB'],
+  'PRIORITAS': ['BALANCE DPK','ADB','AUM'],
+  'PRIVATE': ['BALANCE DPK','ADB','AUM'],
+  'KARTU KREDIT': [], 'BRIMO': [], 'EDC': [], 'QRIS': [],
+};
+const PRODUCT_HOLDING_ALL_DEMO_CATEGORIES = Object.keys(PRODUCT_HOLDING_METRIC_DEFS);
+// The 8 categories that carry an end-of-month CASA/DPK balance and must
+// reconcile back to the customer's simulated Jun 2026 rekening koran figure.
+const PRODUCT_HOLDING_RECONCILE_CATEGORIES = ['BRITAMA BISNIS','BRITAMA VALAS','GIRO BASIC','GIRO VALAS','PRIORITAS','PRIVATE','TABUNGAN BASIC','TABUNGAN RENCANA'];
+const PRODUCT_HOLDING_BALANCE_FIELD = {PRIORITAS:'BALANCE DPK', PRIVATE:'BALANCE DPK'};
+function generateDummyProductHolding(cif, endBalance){
   const rand = seededRand(cif + '|productholding');
-  const groups = PRODUCT_HOLDING_DEMO_CATEGORIES.map(def => {
-    const flag = rand() < 0.45;
+  const balance = Math.max(0, Math.round(endBalance||0));
+  const isPrivate = balance >= 15000000000;   // >= Rp15 miliar
+  const isPrioritas = !isPrivate && balance >= 1000000000; // >= Rp1 miliar
+  // Pick which reconciling categories hold this balance: the wealth tier's
+  // own category (if any) always gets a share, plus 1-2 of the regular CASA
+  // categories so the balance isn't always concentrated in one product.
+  const chosen = [];
+  if(balance > 0){
+    if(isPrivate) chosen.push('PRIVATE');
+    else if(isPrioritas) chosen.push('PRIORITAS');
+    const regularPool = ['BRITAMA BISNIS','BRITAMA VALAS','GIRO BASIC','GIRO VALAS','TABUNGAN BASIC','TABUNGAN RENCANA'];
+    const extra = 1 + Math.floor(rand()*2); // 1-2 more
+    for(let i=0;i<extra && regularPool.length;i++){
+      const idx = Math.floor(rand()*regularPool.length);
+      chosen.push(regularPool.splice(idx,1)[0]);
+    }
+  }
+  // Split `balance` across `chosen` so the shares always sum back exactly.
+  const shareOf = {};
+  let remaining = balance;
+  chosen.forEach((cat,i) => {
+    if(i === chosen.length-1){ shareOf[cat] = remaining; }
+    else { const s = Math.round(remaining * (0.25 + rand()*0.45)); shareOf[cat] = s; remaining -= s; }
+  });
+  const groups = PRODUCT_HOLDING_ALL_DEMO_CATEGORIES.map(category => {
+    const isChosen = chosen.includes(category);
+    // Categories outside the reconciling set (Deposito, Kartu Kredit,
+    // Brimo, EDC, QRIS, Asuransi Mikro) are independently randomized —
+    // they don't carry a CASA balance so there's nothing to reconcile.
+    const independentFlag = !PRODUCT_HOLDING_RECONCILE_CATEGORIES.includes(category) && rand() < 0.35;
+    const flag = isChosen || independentFlag;
     const metrics = {};
     if(flag){
-      def.metrics.forEach(m => {
-        metrics[m] = (m === 'JUMLAH_REKENING' || m === 'JUMLAH_POLIS')
-          ? 1 + Math.floor(rand()*3)
-          : Math.round(5000000 + rand()*95000000);
+      const fields = PRODUCT_HOLDING_METRIC_DEFS[category] || [];
+      const balanceField = PRODUCT_HOLDING_BALANCE_FIELD[category] || 'BALANCE';
+      fields.forEach(f => {
+        if(f === balanceField){
+          metrics[f] = isChosen ? shareOf[category] : Math.round(5000000 + rand()*95000000);
+        } else if(f === 'ADB' || f === 'AUM'){
+          const base = isChosen ? shareOf[category] : 5000000 + rand()*95000000;
+          metrics[f] = Math.round(base * (0.8 + rand()*0.3));
+        } else if(f === 'JUMLAH_REKENING' || f === 'JUMLAH_POLIS'){
+          metrics[f] = 1 + Math.floor(rand()*3);
+        } else {
+          metrics[f] = Math.round(rand()*5000000);
+        }
       });
     }
-    return {category:def.category, flag, metrics};
+    return {category, flag, metrics};
   });
   const totalProduk = groups.filter(g => g.flag).length;
   return {periode:'Jun 2026', groups, tf: totalProduk ? Math.round(rand()*2000000) : 0, totalProduk};
@@ -3346,9 +3452,23 @@ function loadDummyDashboard(){
   State.fundingOnlyProspects = generateDummyFundingOnlyProspects();
   State.inferredRmPairing = computeInferredRmPairing(State.customers);
   State.customersVersion = (State.customersVersion||0) + 1;
+  // Real rekening koran cases (Buana Paksa / Karya Satria) keep no dummy
+  // Product Holding at all — fabricating numbers on top of their real
+  // mutasi data would misrepresent it. Everyone else gets a Product
+  // Holding snapshot reconciled to their simulated Jun 2026 CASA balance
+  // (see generateDummyProductHolding).
+  const isRealRekKoran = entries => !!(entries && entries.length && entries.every(e => e.simulated===false));
   State.productHolding = new Map();
-  State.customers.forEach(c => State.productHolding.set(c.cif, generateDummyProductHolding(c.cif)));
-  (State.fundingOnlyProspects||[]).forEach(p => State.productHolding.set(p.cif, generateDummyProductHolding(p.cif)));
+  State.customers.forEach(c => {
+    if(isRealRekKoran(c.rekeningKoran)) return;
+    const endBalance = c.rekeningKoran && c.rekeningKoran.length ? c.rekeningKoran[c.rekeningKoran.length-1].avgDailyBalance : 0;
+    State.productHolding.set(c.cif, generateDummyProductHolding(c.cif, endBalance));
+  });
+  (State.fundingOnlyProspects||[]).forEach(p => {
+    if(isRealRekKoran(p.rekeningKoran)) return;
+    const endBalance = p.rekeningKoran && p.rekeningKoran.length ? p.rekeningKoran[p.rekeningKoran.length-1].avgDailyBalance : 0;
+    State.productHolding.set(p.cif, generateDummyProductHolding(p.cif, endBalance));
+  });
   populateGlobalFilterOptions();
   applyGlobalFilter();
   $('uploadSection').style.display = 'none';
@@ -3378,7 +3498,7 @@ async function processAll(){
     $('uploadSection').style.display = 'none';
     $('dashboard').classList.add('show');
     $('headerActions').style.display = 'flex';
-    showToast(`Dashboard siap — ${State.customers.size} nasabah, ${State.raw['LW321'].length} fasilitas kredit.`, 'success');
+    showToast(`Dashboard siap, ${State.customers.size} nasabah, ${State.raw['LW321'].length} fasilitas kredit.`, 'success');
   } catch(e){
     console.error(e);
     $('progressCard').classList.remove('show');
@@ -3446,6 +3566,13 @@ document.addEventListener('click', e => {
   th.classList.add(State.sortDir>0?'sort-asc':'sort-desc');
   applyCustFilters();
 });
+// Back-to-top: appears once the page has scrolled a bit, jumps straight
+// back to the top on click — handy once a long customer list or a deep
+// Customer 360 detail dropdown has pushed the page well down.
+window.addEventListener('scroll', () => {
+  $('btnBackToTop').classList.toggle('show', window.scrollY > 400);
+});
+$('btnBackToTop').addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 </script>
 </body>
 </html>
