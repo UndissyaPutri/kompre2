@@ -339,6 +339,7 @@ table.data-table .ctr{text-align:center}
 .rekkoran-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:8px}
 .rekkoran-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
 .sim-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;background:var(--warning);color:#fff;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
+.sim-tag.real-tag{background:var(--success)}
 .pipeline-badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px}
 .pipeline-badge{border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);background:var(--surface-alt)}
 .pipeline-badge.pass{background:#e5f6ef;border-color:var(--success)}
@@ -1093,6 +1094,37 @@ function rekKoranMonthLabel(y, m){
   const names = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   return `${names[m]} ${y}`;
 }
+/* Named customers for whom we have REAL rekening koran data instead of the
+   simulation above — currently just Buana Paksa (6 bulan, Nov 2025–Apr
+   2026, OCR'd from the customer's actual BRI mutasi/BRISIM export; figures
+   verified against the raw transaction rows: junk OCR page-break rows
+   dropped, day-weighted average balance). Karya Satria is pending — add its
+   real entries here once that mutasi export is provided; until then it
+   falls back to the simulation like everyone else. Matched by normalized
+   name (real portfolio exports don't carry an "is this the sample case"
+   flag), tolerant of a badan-usaha prefix/suffix (PT/CV/UD/etc.) since the
+   real LW321 record may list it as "BUANA PAKSA", "CV BUANA PAKSA", or
+   "BUANA PAKSA CV". */
+const REAL_REKENING_KORAN = {
+  'BUANA PAKSA': [
+    {year:2025, month:11, freq:23, totalCredit:98627068,    totalDebit:15034,     avgDailyBalance:174052239},
+    {year:2025, month:12, freq:30, totalCredit:1787649520,  totalDebit:586766034, avgDailyBalance:287137090},
+    {year:2026, month:1,  freq:50, totalCredit:1135774937,  totalDebit:1843807987,avgDailyBalance:531146846},
+    {year:2026, month:2,  freq:29, totalCredit:222400467,   totalDebit:653005041, avgDailyBalance:595908063},
+    {year:2026, month:3,  freq:24, totalCredit:142380945,   totalDebit:3519089,   avgDailyBalance:374753080},
+    {year:2026, month:4,  freq:35, totalCredit:82583382,    totalDebit:379640318, avgDailyBalance:193707743},
+  ].map(e => ({...e, simulated:false})),
+};
+function lookupRealRekeningKoran(nama){
+  if(!nama) return null;
+  const norm = s => normName(s).replace(/\b(PT|CV|UD|PD|KOPERASI|FIRMA|YAYASAN|KSP|BUMDES)\b/g,'').replace(/\s+/g,' ').trim();
+  const key = norm(nama);
+  if(!key) return null;
+  for(const k of Object.keys(REAL_REKENING_KORAN)){
+    if(key === norm(k) || key.includes(norm(k))) return REAL_REKENING_KORAN[k];
+  }
+  return null;
+}
 /* ===================================================================
    SLOT UI
    ================================================================= */
@@ -1356,7 +1388,7 @@ function buildCustomers(){
   // (see buildPinjamanOppList) rather than every savings-only customer with
   // any funding product qualifying automatically.
   State.fundingOnlyProspects.forEach(p => {
-    p.rekeningKoran = generateDummyRekeningKoran(p.cif, p.tabunganSum + p.giroSum + p.edcSum + p.qrisSum);
+    p.rekeningKoran = lookupRealRekeningKoran(p.nama) || generateDummyRekeningKoran(p.cif, p.tabunganSum + p.giroSum + p.edcSum + p.qrisSum);
     p.pipelineEval = evaluateRekeningKoranPipelines(p);
   });
   // 7. Compute aggregates & opportunity flags per customer
@@ -1384,12 +1416,13 @@ function buildCustomers(){
       ...c.edc.map(m => combinePn(m.pnUser, m.namaUser)),
       ...c.qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
-    // Simulated rekening koran + Pipeline SME validation (see
-    // generateDummyRekeningKoran/evaluateRekeningKoranPipelines above) — this
-    // dashboard can't pull real bulk mutasi data, so every customer gets a
-    // deterministic, CIF-seeded simulation anchored to their known funding
-    // balance, standing in for what a real rekening koran feed would drive.
-    c.rekeningKoran = generateDummyRekeningKoran(c.cif, c.totalFunding);
+    // Rekening koran + Pipeline SME validation (see REAL_REKENING_KORAN /
+    // generateDummyRekeningKoran / evaluateRekeningKoranPipelines above). A
+    // handful of named customers (currently Buana Paksa) have REAL mutasi
+    // data on file and use that; everyone else gets a deterministic,
+    // CIF-seeded simulation anchored to their known funding balance, standing
+    // in for what a real bulk rekening koran feed would drive.
+    c.rekeningKoran = lookupRealRekeningKoran(c.nama) || generateDummyRekeningKoran(c.cif, c.totalFunding);
     c.pipelineEval = evaluateRekeningKoranPipelines(c);
     const opp = [];
     // Cross-sell only applies to a healthy (Kol 1) relationship — a Kol 2+
@@ -1398,16 +1431,21 @@ function buildCustomers(){
     // Cross-sell Tabungan/Giro were cut — "belum punya tabungan/giro" alone
     // was too weak a signal to act on. EDC/QRIS cross-sell now requires the
     // Pipeline Nasabah Merchant validation (high ratas CASA + very high
-    // transaction frequency) instead of just "doesn't have it yet".
+    // transaction frequency) instead of just "doesn't have it yet", and are
+    // merged into one Merchant card since both are gated by the same signal.
     if(c.worstKol === 1){
-      if(c.deposito.length===0 && c.totalFunding > 50000000) opp.push('noDeposito');
-      if(c.pipelineEval.merchant){
-        if(c.edc.length===0) opp.push('noMerchantEdc');
-        if(c.qris.length===0) opp.push('noMerchantQris');
-      }
+      if(c.pipelineEval.merchant && (c.edc.length===0 || c.qris.length===0)) opp.push('crossSellMerchant');
     }
     if(c.worstKol === 2) opp.push('quality');
     if(c.worstKol >= 3) opp.push('kolWatch');
+    // Cash Collateral replaces the old "Edukasi Deposito" (funding>Rp50jt,
+    // no deposito yet) — that threshold was arbitrary and produced shaky
+    // counts. This is a much more concrete, lower-risk signal: an EXISTING
+    // deposito with no active loan is a ready-made cash-collateral loan
+    // candidate (the loan is secured by the customer's own cash), independent
+    // of the rekening koran Pipeline checks — the collateral itself is what
+    // de-risks it, not transaction activity.
+    if(c.deposito.length > 0 && c.totalBakiDebet === 0) opp.push('cashCollateral');
     // "Currently has no active credit facility" — not "never had one". A
     // customer whose loan is fully paid off (Baki Debet = 0) but who still
     // has Tabungan/Giro/Deposito/EDC/QRIS is just as much a lending pipeline
@@ -1417,8 +1455,8 @@ function buildCustomers(){
     // product and no loan" alone flagged nearly the entire funding-only
     // portfolio as a loan opportunity, which isn't a realistic pipeline —
     // now also requires a validated Pipeline CASA Optimal or Pipeline
-    // Transaksi Optimal signal from the (simulated) rekening koran, per
-    // Ketentuan Ekspansi Kredit Segmen SME 2026.
+    // Transaksi Optimal signal from the rekening koran, per Ketentuan
+    // Ekspansi Kredit Segmen SME 2026.
     if(c.totalBakiDebet === 0 && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)
       && (c.pipelineEval.casaOptimal || c.pipelineEval.transaksiOptimal)) opp.push('pinjaman');
     c.opportunities = opp;
@@ -1460,12 +1498,11 @@ function buildCustomers(){
    OPPORTUNITY CATEGORY DEFINITIONS
    ================================================================= */
 const OPP_DEFS = {
-  pinjaman:      {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Tidak memiliki fasilitas kredit aktif di BRI, DAN tervalidasi rekening koran memenuhi Pipeline CASA Optimal atau Pipeline Transaksi Optimal (Ketentuan Ekspansi Kredit Segmen SME 2026) — bukan sekadar "punya simpanan, belum punya pinjaman".', rec:'Kandidat pipeline kredit tervalidasi — ratas saldo CASA & frekuensi/volume transaksinya sudah memenuhi ambang batas ekspansi kredit SME, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi).'},
-  noDeposito:    {tag:'DEPOSITO', label:'Edukasi Deposito', owner:'FT', sub:'Dana funding cukup besar (>Rp 50 juta) namun belum ditempatkan di deposito.', rec:'Dana mengendap besar berpotensi dikonversi menjadi deposito untuk optimalisasi dana pihak ketiga (DPK) dan loyalitas nasabah.'},
-  noMerchantEdc: {tag:'EDC', label:'Cross-sell EDC', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun belum punya EDC.', rec:'Nasabah dengan pola transaksi setara merchant aktif — peluang akuisisi EDC kuat karena aktivitasnya sudah terbukti tinggi, bukan sekadar belum pernah ditawari.'},
-  noMerchantQris:{tag:'QRIS', label:'Cross-sell QRIS', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun belum punya QRIS.', rec:'Nasabah dengan pola transaksi setara merchant aktif — peluang akuisisi QRIS (setup lebih murah & cepat dibanding EDC), cocok untuk usaha skala kecil-menengah yang sudah terbukti aktif.'},
-  quality:       {tag:'QUALITY', label:'Quality — Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2 — perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
-  kolWatch:      {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas — belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
+  pinjaman:        {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Tidak memiliki fasilitas kredit aktif di BRI, DAN tervalidasi rekening koran memenuhi Pipeline CASA Optimal atau Pipeline Transaksi Optimal (Ketentuan Ekspansi Kredit Segmen SME 2026) — bukan sekadar "punya simpanan, belum punya pinjaman".', rec:'Kandidat pipeline kredit tervalidasi — ratas saldo CASA & frekuensi/volume transaksinya sudah memenuhi ambang batas ekspansi kredit SME, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi).'},
+  cashCollateral:  {tag:'CASH COLLATERAL', label:'Cross-sell Cash Collateral', owner:'SME + FT', sub:'Sudah punya Deposito di BRI, namun sedang tidak memiliki fasilitas kredit aktif — dana yang mengendap bisa langsung jadi agunan.', rec:'Tawarkan Kredit Cash Collateral (modal kerja/investasi dengan jaminan deposito) — risiko rendah dan proses cepat karena agunannya dana tunai milik nasabah sendiri, bukan aset yang perlu dinilai.'},
+  crossSellMerchant:{tag:'MERCHANT', label:'Cross-sell Merchant (EDC/QRIS)', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun EDC dan/atau QRIS-nya belum lengkap.', rec:'Pola transaksinya sudah setara merchant aktif — tawarkan EDC dan/atau QRIS sesuai yang belum dimiliki, sinyal akuisisi kuat karena aktivitas transaksinya sudah terbukti tinggi.'},
+  quality:         {tag:'QUALITY', label:'Quality — Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2 — perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
+  kolWatch:        {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas — belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
 };
 function computeOppCategories(){
   const cats = {};
@@ -1685,7 +1722,7 @@ function applyCustFilters(){
     if(kol && String(c.worstKol) !== kol) return false;
     if(prod === 'noTabungan' && c.tabungan.length>0) return false;
     if(prod === 'noGiro' && c.giro.length>0) return false;
-    if(prod === 'noDeposito' && !c.opportunities.includes('noDeposito')) return false;
+    if(prod === 'noDeposito' && c.deposito.length>0) return false;
     if(prod === 'noMerchantEdc' && c.edc.length>0) return false;
     if(prod === 'noMerchantQris' && c.qris.length>0) return false;
     if(prod === 'hasOpp' && c.oppCount===0) return false;
@@ -1865,6 +1902,10 @@ function renderRekeningKoranSection(c){
 
   const ev = c.pipelineEval || evaluateRekeningKoranPipelines(c);
   const n = ev.monthsCovered || 0;
+  // Real entries (currently just Buana Paksa — see REAL_REKENING_KORAN) are
+  // tagged simulated:false; everything else is the CIF-seeded simulation.
+  const isReal = entries.length>0 && entries.every(e => e.simulated===false);
+  const dataLabel = isReal ? 'data asli' : 'data simulasi';
   const notKol1Note = c.worstKol !== 1
     ? '<div class="upload-hint" style="margin-top:6px">Kolektibilitas nasabah ini bukan Kol 1 — hasil di bawah dihitung untuk referensi, tapi tidak ditampilkan sebagai peluang baru (lihat Recovery/Quality) sampai kembali Lancar.</div>' : '';
   function badge(key, thr, detailLabel){
@@ -1874,7 +1915,7 @@ function renderRekeningKoranSection(c){
         <div class="pb-tag">${PIPELINE_BADGE_LABELS[key]}</div>
         <div class="pb-status">${pass?'MEMENUHI':'BELUM MEMENUHI'}</div>
         <div class="pb-detail">${detailLabel}</div>
-        <div class="pb-window">Berdasarkan ${n} bulan data simulasi (kriteria resmi: ${thr.label})</div>
+        <div class="pb-window">Berdasarkan ${n} bulan ${dataLabel} (kriteria resmi: ${thr.label})</div>
       </div>`;
   }
   const casaBadge = badge('casaOptimal', PIPELINE_THRESHOLDS.casaOptimal,
@@ -1888,8 +1929,10 @@ function renderRekeningKoranSection(c){
     <div class="rekkoran-box">
       <div class="rekkoran-head">
         <div>
-          <strong>Rekening Koran / Mutasi — 6 Bulan Terakhir <span class="sim-tag">SIMULASI</span></strong>
-          <div class="upload-hint">Dashboard belum bisa menarik rekening koran nasabah secara langsung/massal — angka di bawah adalah <strong>simulasi</strong> (diturunkan dari saldo funding yang sudah tercatat), sebagai contoh cara kerja validasi Pipeline SME kalau data mutasi asli sudah bisa ditarik otomatis.${notKol1Note}</div>
+          <strong>Rekening Koran / Mutasi — ${n} Bulan Terakhir ${isReal ? '<span class="sim-tag real-tag">DATA ASLI</span>' : '<span class="sim-tag">SIMULASI</span>'}</strong>
+          <div class="upload-hint">${isReal
+            ? 'Data rekening koran asli nasabah ini (bukan simulasi) — sudah diverifikasi terhadap file mutasi/BRISIM sumbernya.'
+            : 'Dashboard belum bisa menarik rekening koran nasabah secara langsung/massal — angka di bawah adalah <strong>simulasi</strong> (diturunkan dari saldo funding yang sudah tercatat), sebagai contoh cara kerja validasi Pipeline SME kalau data mutasi asli sudah bisa ditarik otomatis.'}${notKol1Note}</div>
         </div>
       </div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Bulan</th><th class="num">Freq Transaksi</th><th class="num">Total Kredit</th><th class="num">Total Debit</th><th class="num">Ratas Saldo (CASA)</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -2014,39 +2057,29 @@ function buildOppInsightNote(c, key){
     // Recovery instead, already handled above).
     return `<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06;margin-top:8px"><strong>Quality (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu dipantau komitmen pembayarannya sebelum kualitas memburuk ke Kol 3 ke atas.</div>`;
   }
-  // 'pinjaman' and the EDC/QRIS cross-sells are now gated behind a rekening
-  // koran Pipeline validation (see buildCustomers/generateDummyCustomers) —
-  // cite the actual simulated numbers so it's clear this isn't just "belum
-  // punya produk", it's a validated CASA/frekuensi/volume signal.
+  // 'pinjaman' and the Merchant cross-sell are gated behind a rekening koran
+  // Pipeline validation (see buildCustomers/generateDummyCustomers) — cite
+  // the actual numbers so it's clear this isn't just "belum punya produk",
+  // it's a validated CASA/frekuensi/volume signal. Buana Paksa (and, once
+  // provided, Karya Satria) use REAL rekening koran data instead of the
+  // simulation — see REAL_REKENING_KORAN — so the note says which it is.
   const ev = c.pipelineEval || {};
+  const dataSrc = (c.rekeningKoran||[]).length && c.rekeningKoran.every(e => e.simulated===false) ? 'rekening koran asli' : 'rekening koran simulasi';
   if(key === 'pinjaman'){
     const which = [];
     if(ev.casaOptimal) which.push(`Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}, frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan)`);
     if(ev.transaksiOptimal) which.push(`Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`);
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi (rekening koran simulasi) memenuhi ${which.join(' dan ')} — kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi (${dataSrc}) memenuhi ${which.join(' dan ')} — kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
   }
-  if(key === 'noMerchantEdc' || key === 'noMerchantQris'){
-    const label = key === 'noMerchantEdc' ? 'EDC' : 'QRIS';
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi (rekening koran simulasi) memenuhi Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan — tapi belum punya ${label}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${label} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
+  if(key === 'crossSellMerchant'){
+    const missing = [c.edc.length===0 && 'EDC', c.qris.length===0 && 'QRIS'].filter(Boolean).join(' dan ');
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi (${dataSrc}) memenuhi Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
   }
-  const owned = [];
-  if(c.tabungan.length) owned.push('Tabungan');
-  if(c.giro.length) owned.push('Giro');
-  if(c.deposito.length) owned.push('Deposito');
-  if(c.edc.length) owned.push('EDC');
-  if(c.qris.length) owned.push('QRIS');
-  const missingLabel = {noDeposito:'Deposito'}[key];
-  let msg;
-  if(owned.length){
+  if(key === 'cashCollateral'){
     const kolNote = c.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
-    msg = `${escapeHtml(c.nama)} sudah punya <strong>${owned.join(', ')}</strong> di BRI, cuma <strong>${missingLabel}</strong> yang belum ada — relationship-nya sudah jalan, jadi RM FT masih bisa tap-in untuk melengkapi dengan ${missingLabel}${kolNote}`;
-  } else {
-    msg = `${escapeHtml(c.nama)} belum punya produk funding/merchant apapun di BRI — perlu pendekatan akuisisi dari awal, bukan sekadar pelengkap.`;
-    if(looksLikeBadanUsaha(c.nama)){
-      msg += ` Karena berbentuk badan usaha, RM FT juga bisa tap-in lewat pemilik/pengurus (owner) sebagai entry point personal banking, sambil tetap menjajaki funding atas nama perusahaan.`;
-    }
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} punya Deposito senilai ${fmtRupiah(c.totalDeposito)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — dana ini bisa langsung dijadikan agunan untuk Kredit Cash Collateral tanpa perlu penilaian jaminan tambahan${kolNote}</div>`;
   }
-  return `<div class="rec-note" style="margin-top:8px">${msg}</div>`;
+  return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} terdeteksi punya peluang pengembangan produk lain di BRI.</div>`;
 }
 /* "Pinjaman" (RM SME angle) has a different data shape (funding-only
    prospects: cif/nama/jenis/balance/openDt/ukerCode) than every other
@@ -2545,18 +2578,15 @@ function generateDummyCustomers(){
       ...edc.map(m => combinePn(m.pnUser, m.namaUser)),
       ...qris.map(m => combinePn(m.pn, m.pnNama)),
     ].filter(v => v && v !== '-'))];
-    c.rekeningKoran = generateDummyRekeningKoran(c.cif, c.totalFunding);
+    c.rekeningKoran = lookupRealRekeningKoran(c.nama) || generateDummyRekeningKoran(c.cif, c.totalFunding);
     c.pipelineEval = evaluateRekeningKoranPipelines(c);
     const opp = [];
     if(c.worstKol === 1){
-      if(c.deposito.length===0 && c.totalFunding>50000000) opp.push('noDeposito');
-      if(c.pipelineEval.merchant){
-        if(c.edc.length===0) opp.push('noMerchantEdc');
-        if(c.qris.length===0) opp.push('noMerchantQris');
-      }
+      if(c.pipelineEval.merchant && (c.edc.length===0 || c.qris.length===0)) opp.push('crossSellMerchant');
     }
     if(c.worstKol===2) opp.push('quality');
     if(c.worstKol>=3) opp.push('kolWatch');
+    if(c.deposito.length > 0 && c.totalBakiDebet === 0) opp.push('cashCollateral');
     if(c.totalBakiDebet === 0 && (c.tabungan.length || c.giro.length || c.deposito.length || c.edc.length || c.qris.length)
       && (c.pipelineEval.casaOptimal || c.pipelineEval.transaksiOptimal)) opp.push('pinjaman');
     c.opportunities = opp;
