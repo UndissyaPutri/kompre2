@@ -351,6 +351,18 @@ table.data-table .ctr{text-align:center}
 .pipeline-badge.pass .pb-status{color:#0a7d58}
 .pipeline-badge .pb-detail{font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5}
 .pipeline-badge .pb-window{font-size:10px;color:var(--text-soft);margin-top:5px;font-style:italic}
+/* ===================== REKENING KORAN MODAL =====================
+   A lightweight pop-up so the Rekening Koran / Pipeline SME evidence can be
+   checked directly from an opp-entry card (Peluang Pengembangan) without
+   needing to navigate away — funding-only prospects in particular have no
+   row in the Profil Nasabah table to click into. */
+.rk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.rk-modal-overlay.show{display:flex}
+.rk-modal-box{background:var(--surface);border-radius:var(--radius);max-width:900px;width:100%;padding:22px 24px;box-shadow:var(--shadow-md);position:relative}
+.rk-modal-close{position:absolute;top:14px;right:16px;border:none;background:var(--surface-alt);color:var(--text-soft);width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;line-height:1}
+.rk-modal-close:hover{background:var(--border);color:var(--text)}
+.rk-modal-title{font-size:15px;font-weight:800;color:var(--brand-darker);margin-bottom:2px;padding-right:36px}
+.rk-modal-sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
 /* ===================== CHARTS ===================== */
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
 .chart-card{background:var(--surface);border-radius:var(--radius-sm);padding:18px;box-shadow:none;border:1px solid var(--border)}
@@ -618,6 +630,13 @@ table.data-table td.empty{text-align:center}
               <option value="tanggal">Urutkan: Tanggal Terbaru</option>
               <option value="saldo">Urutkan: Jumlah Saldo Terbesar</option>
             </select>
+            <div id="oppPinjamanPipelineFilterWrap" style="display:none">
+              <input class="input gf-combo-input" id="oppPinjamanPipelineFilter" list="oppPinjamanPipelineList" placeholder="Semua Pipeline — ketik untuk cari" autocomplete="off" style="max-width:260px">
+              <datalist id="oppPinjamanPipelineList">
+                <option value="Pipeline CASA Optimal">
+                <option value="Pipeline Transaksi Optimal">
+              </datalist>
+            </div>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
         </div>
@@ -684,6 +703,14 @@ table.data-table td.empty{text-align:center}
       </div>
     </div>
   </section>
+  <div class="rk-modal-overlay no-print" id="rkModalOverlay">
+    <div class="rk-modal-box" id="rkModalBox">
+      <button class="rk-modal-close" id="rkModalClose" title="Tutup" aria-label="Tutup">✕</button>
+      <div class="rk-modal-title" id="rkModalTitle"></div>
+      <div class="rk-modal-sub" id="rkModalSub"></div>
+      <div id="rkModalBody"></div>
+    </div>
+  </div>
 </main>
 <script>
 'use strict';
@@ -888,6 +915,16 @@ const fmtRupiah = v => {
   return 'Rp ' + n.toLocaleString('id-ID', {minimumFractionDigits:0, maximumFractionDigits:0});
 };
 const fmtNum = v => (v==null||v===''||isNaN(v)) ? '-' : Number(v).toLocaleString('id-ID');
+// Indonesian-locale decimal formatter — plain JS .toFixed(1) always renders a
+// PERIOD as the decimal point (e.g. "28.2"), which reads inconsistently next
+// to every Rupiah figure in this app (fmtRupiah uses id-ID locale, where "."
+// is the THOUSANDS separator and "," is the decimal point) — "28.2x/bulan"
+// next to "Rp 138.526.621" looks like it's using two different numbering
+// conventions. Frequency/percentage figures that need one decimal place
+// (averages over a several-month window are rarely whole numbers) should
+// go through this instead, so they render as "28,2x/bulan" — consistent
+// with id-ID formatting everywhere else.
+const fmtDec = (v, decimals=1) => (v==null||isNaN(v)) ? '-' : Number(v).toLocaleString('id-ID', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
 const parseNum = v => {
   if(v == null || v === '') return 0;
   if(typeof v === 'number') return v;
@@ -1929,7 +1966,7 @@ function renderKpiDplCard(custs){
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
   const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
   const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
-  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan = ${actualPct.toFixed(1)}%`;
+  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan = ${fmtDec(actualPct)}%`;
 }
 function renderStats(){
   const custs = getScopedCustomers();
@@ -2027,7 +2064,7 @@ function renderCustTable(){
         <td class="num">${fmtRupiah(c.totalPlafon)}</td>
         <td class="num">${fmtRupiah(c.totalBakiDebet)}</td>
         <td class="num">${fmtRupiah(c.totalFunding)}</td>
-        <td class="num">${c.fundingCoverage!=null ? (c.fundingCoverage*100).toFixed(1)+'%' : '-'}</td>
+        <td class="num">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</td>
         <td>${productPills(c)}</td>
         <td>${oppPills(c)}</td>
       </tr>
@@ -2105,7 +2142,7 @@ function buildPipelineNearMissNote(c){
     if(ratio >= 0.5 && ratio < 1 && (!best || ratio > best.ratio)) best = {...cd, ratio};
   });
   if(!best) return null;
-  const fmtVal = v => best.unit==='freq' ? `${v.toFixed(1)}x/bulan` : fmtRupiah(Math.round(v));
+  const fmtVal = v => best.unit==='freq' ? `${fmtDec(v)}x/bulan` : fmtRupiah(Math.round(v));
   const gap = Math.max(0, best.min - best.current);
   const actionText = best.unit==='freq'
     ? 'dorong frekuensi transaksi rekening (migrasi mutasi debit/kredit rutin — payroll, pembayaran vendor, dsb — ke rekening BRI)'
@@ -2129,7 +2166,7 @@ function renderOpportunityRecommendations(c){
     const pct = (c.fundingCoverage||0) * 100;
     const targetFunding = c.totalBakiDebet * threshold;
     const gap = Math.max(0, targetFunding - c.totalFunding);
-    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan baru ${pct.toFixed(1)}% (di bawah ambang batas ${(threshold*100).toFixed(0)}%, lihat tab Prioritas Pengelolaan) — perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
+    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan) — perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
   }
   // Product cross-sell opportunities are only pushed for Kol 1 accounts —
   // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
@@ -2176,7 +2213,11 @@ function renderRekeningKoranSection(c){
   // Only the simulated case gets a disclosure tag — real data doesn't need
   // a "this is real" badge, only fabricated numbers need the warning label.
   const isReal = entries.length>0 && entries.every(e => e.simulated===false);
-  const notKol1Note = c.worstKol !== 1
+  // c.worstKol is only meaningful for an actual loan customer — a funding-
+  // only prospect (never in LW321, no loan at all) has no Kol to speak of,
+  // so this note would otherwise wrongly claim "bukan Kol 1" for every
+  // prospect shown via the Rekening Koran modal (see showRekeningKoranModal).
+  const notKol1Note = (c.worstKol != null && c.worstKol !== 1)
     ? '<div class="upload-hint" style="margin-top:6px">Kolektibilitas nasabah ini bukan Kol 1 — hasil di bawah dihitung untuk referensi, tapi tidak ditampilkan sebagai peluang baru (lihat Recovery/Quality) sampai kembali Lancar.</div>' : '';
   function badge(key, thr, detailLabel, months){
     const pass = ev[key];
@@ -2189,9 +2230,9 @@ function renderRekeningKoranSection(c){
       </div>`;
   }
   const casaBadge = badge('casaOptimal', PIPELINE_THRESHOLDS.casaOptimal,
-    `Ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))} (min. Rp100 juta) · Frekuensi ${(ev.avgFreq12||0).toFixed(1)}x/bulan (min. 30x)`, ev.monthsCasaWindow||0);
+    `Ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))} (min. Rp100 juta) · Frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan (min. 30x)`, ev.monthsCasaWindow||0);
   const merchantBadge = badge('merchant', PIPELINE_THRESHOLDS.merchant,
-    `Ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp100 juta/bulan) · Frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan (min. 100x)`, ev.monthsShortWindow||0);
+    `Ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp100 juta/bulan) · Frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan (min. 100x)`, ev.monthsShortWindow||0);
   const transBadge = badge('transaksiOptimal', PIPELINE_THRESHOLDS.transaksiOptimal,
     `Kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan (min. Rp800 juta) · CASA ${fmtRupiah(Math.round(ev.avgCasa||0))} (min. Rp50 juta) — umur rekening perlu verifikasi manual`, ev.monthsShortWindow||0);
 
@@ -2235,6 +2276,39 @@ function renderRekeningKoranSection(c){
     </div>
   `;
 }
+/* Rekening Koran pop-up — lets an opp-entry card (Peluang Pengembangan:
+   Pinjaman, Cash Collateral, Merchant, etc.) show the same Rekening Koran
+   table + Pipeline SME badges as the Profil Nasabah / Customer 360 view,
+   without navigating away. Needed in particular for funding-only prospects
+   (Peluang Pinjaman/Cash Collateral candidates who never had a loan) — they
+   have no row in the Profil Nasabah table to click into via
+   goToCustomerDetail, so this looks them up in State.fundingOnlyProspects
+   instead when the CIF isn't found in State.customers. */
+function showRekeningKoranModal(cif){
+  let entity = State.customers.get(cif);
+  let nama, subLabel;
+  if(entity){
+    nama = entity.nama;
+    subLabel = `CIF ${entity.cif} · Kol ${entity.worstKol} - ${KOL_LABEL[entity.worstKol]||''}`;
+  } else {
+    entity = (State.fundingOnlyProspects||[]).find(p => p.cif === cif);
+    if(!entity){
+      showToast('Data rekening koran nasabah ini tidak ditemukan.', 'error');
+      return;
+    }
+    nama = entity.nama;
+    subLabel = `CIF ${entity.cif} · Belum punya fasilitas kredit (nasabah funding/simpanan)`;
+  }
+  $('rkModalTitle').textContent = nama || '(tanpa nama)';
+  $('rkModalSub').textContent = subLabel;
+  $('rkModalBody').innerHTML = renderRekeningKoranSection(entity);
+  $('rkModalOverlay').classList.add('show');
+}
+window.showRekeningKoranModal = showRekeningKoranModal;
+function closeRekeningKoranModal(){
+  $('rkModalOverlay').classList.remove('show');
+}
+window.closeRekeningKoranModal = closeRekeningKoranModal;
 function renderCustomerDetail(c){
   const loansRows = c.loans.map(l => `
     <tr>
@@ -2274,7 +2348,7 @@ function renderCustomerDetail(c){
             <div><div class="f-label">Unit Kerja</div><div class="f-value">${escapeHtml(c.uker)}</div></div>
             <div><div class="f-label">Kolektibilitas Terburuk</div><div class="f-value">${c.worstKol} - ${KOL_LABEL[c.worstKol]}</div></div>
             <div><div class="f-label">RM Pengelola Kredit</div><div class="f-value">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</div></div>
-            <div><div class="f-label" title="Deposit to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">Deposit to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? (c.fundingCoverage*100).toFixed(1)+'%' : '-'}</div></div>
+            <div><div class="f-label" title="Deposit to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">Deposit to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</div></div>
           </div>
           <div class="product-pills">
             <span class="pill ${c.loans.length?'on':''}">Pinjaman ${c.loans.length}</span>
@@ -2361,13 +2435,13 @@ function buildOppInsightNote(c, key){
   const ev = c.pipelineEval || {};
   if(key === 'pinjaman'){
     const which = [];
-    if(ev.casaOptimal) which.push(`Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${(ev.avgFreq12||0).toFixed(1)}x/bulan)`);
-    if(ev.transaksiOptimal) which.push(`Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`);
+    if(ev.casaOptimal) which.push(`<strong>Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)</strong>`);
+    if(ev.transaksiOptimal) which.push(`<strong>Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})</strong>`);
     return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi rekening koran memenuhi ${which.join(' dan ')} — kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
   }
   if(key === 'crossSellMerchant'){
     const missing = [c.edc.length===0 && 'EDC', c.qris.length===0 && 'QRIS'].filter(Boolean).join(' dan ');
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi <strong>Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan</strong> — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
   }
   // Note: 'cashCollateral' used to be handled here too, but it now flows
   // through buildCashCollateralOppList/buildProspectOppNote instead (see
@@ -2396,8 +2470,8 @@ function buildProspectOppNote(p, key){
     : 'belum pernah tercatat punya fasilitas kredit';
   const ev = p.pipelineEval || {};
   const which = [
-    ev.casaOptimal && `Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${(ev.avgFreq12||0).toFixed(1)}x/bulan)`,
-    ev.transaksiOptimal && `Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`,
+    ev.casaOptimal && `<strong>Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)</strong>`,
+    ev.transaksiOptimal && `<strong>Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})</strong>`,
   ].filter(Boolean);
   return `<div class="rec-note" style="margin-top:8px">${namaStr} sudah punya relationship <strong>${produkStr}</strong> di BRI, ${statusStr}, dan tervalidasi rekening koran memenuhi ${which.join(' dan ') || 'kriteria Pipeline SME'} — kandidat pipeline kredit untuk RM SME.${cifNote}</div>`;
 }
@@ -2421,10 +2495,20 @@ function selectOpp(k, resetPinjamanPage=true){
   // buildCashCollateralOppList) — the other categories aren't split by
   // product type this way, so it's only shown for these two.
   $('oppPinjamanFilterWrap').style.display = (k === 'pinjaman' || k === 'cashCollateral') ? 'flex' : 'none';
+  // The CASA Optimal / Transaksi Optimal pipeline filter only makes sense
+  // for Pinjaman — that's the only category whose qualification is "one OR
+  // the other" of those two pipelines (Cash Collateral qualifies on a
+  // Deposito+no-loan basis, unrelated to either pipeline).
+  $('oppPinjamanPipelineFilterWrap').style.display = k === 'pinjaman' ? '' : 'none';
   if(k === 'pinjaman' || k === 'cashCollateral'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
     if(jenisFilter) list = list.filter(p => p.produk.includes(jenisFilter));
+    if(k === 'pinjaman'){
+      const pipelineFilterRaw = ($('oppPinjamanPipelineFilter').value || '').trim().toLowerCase();
+      if(pipelineFilterRaw.includes('casa')) list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal);
+      else if(pipelineFilterRaw.includes('transaksi')) list = list.filter(p => p.pipelineEval && p.pipelineEval.transaksiOptimal);
+    }
     // list may still be the same array reference as State.oppCategories[k]
     // if no filter/search narrowed it down — always slice() before sorting so
     // we never mutate the shared source array (which stays newest-first by
@@ -2449,9 +2533,13 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Total Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
           <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(p.rmSme || '-')}</span></div>
-          <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
           ${rows}
+          <!-- RM FT last, not in the middle — it can list more than one name
+               (comma-joined), and a long wrapped value in the middle of the
+               grid pushes/misaligns the fields after it. -->
+          <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
         </div>
+        <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(p.cif)}')">Lihat Rekening Koran</button>
         ${buildProspectOppNote(p, k)}
       </div>
     `;
@@ -2479,8 +2567,10 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">Baki Debet</span><span class="val">${fmtRupiah(c.totalBakiDebet)}</span></div>
         <div class="detail-field"><span class="lbl">Total Funding</span><span class="val">${fmtRupiah(c.totalFunding)}</span></div>
         <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
+        <!-- RM FT last — see note above on the prospect-shaped template. -->
         <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((c.rmFundingList && c.rmFundingList.length) ? c.rmFundingList.join(', ') : '-')}</span></div>
       </div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(c.cif)}')">Lihat Rekening Koran</button>
       ${buildOppInsightNote(c, k)}
     </div>
   `).join('');
@@ -2498,6 +2588,7 @@ window.growPinjamanOppPage = growPinjamanOppPage;
 $('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp, true); });
 $('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, true); });
 $('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, false); });
+$('oppPinjamanPipelineFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
 /* ===================================================================
    PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
    ---------------------------------------------------------------
@@ -2587,7 +2678,7 @@ function renderPriorityTable(){
     <tr>
       <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(r.c.cif)}')"><strong>${escapeHtml(r.c.nama)}</strong></a></td>
       <td class="num">${fmtRupiah(r.c.totalBakiDebet)}</td>
-      <td class="num">${(r.cov*100).toFixed(1)}%</td>
+      <td class="num">${fmtDec(r.cov*100)}%</td>
       <td><span class="badge-pill ${QUAD_DEFS[r.quad].badgeCls}">${QUAD_DEFS[r.quad].label}</span></td>
       <td>${escapeHtml(cleanPn(r.c.loans[0]?.pnPengelola))}</td>
       <td>${escapeHtml(r.c.rmFundingList && r.c.rmFundingList.length ? r.c.rmFundingList.join(', ') : '-')}</td>
@@ -2610,10 +2701,10 @@ function renderPriorityBasisCard(){
   const p = State.priority;
   $('priorityBasisContent').innerHTML = `
     <span class="label-tag">Threshold Deposit to Loan</span>
-    <div class="cname" style="font-size:16px">${p.usingOverride ? 'Manual' : 'Default Tetap'}: &lt; ${(p.p25Cov*100).toFixed(1)}%</div>
+    <div class="cname" style="font-size:16px">${p.usingOverride ? 'Manual' : 'Default Tetap'}: &lt; ${fmtDec(p.p25Cov*100)}%</div>
     <div class="customer-hero-grid" style="margin-top:10px">
-      <div><div class="f-label">Perlu Kunjungan</div><div class="f-value">Deposit to Loan &lt; ${(p.p25Cov*100).toFixed(1)}%, diurutkan OS terbesar</div></div>
-      <div><div class="f-label">Sehat</div><div class="f-value">Deposit to Loan ≥ ${(p.p25Cov*100).toFixed(1)}%</div></div>
+      <div><div class="f-label">Perlu Kunjungan</div><div class="f-value">Deposit to Loan &lt; ${fmtDec(p.p25Cov*100)}%, diurutkan OS terbesar</div></div>
+      <div><div class="f-label">Sehat</div><div class="f-value">Deposit to Loan ≥ ${fmtDec(p.p25Cov*100)}%</div></div>
     </div>
   `;
 }
@@ -2748,7 +2839,7 @@ function renderPriorityReviewTable(){
   $('priorityReviewBody').innerHTML = list.length ? list.map(c => `
     <tr>
       <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
-      <td class="num">${(c.fundingCoverage*100).toFixed(3)}%</td>
+      <td class="num">${fmtDec(c.fundingCoverage*100,3)}%</td>
     </tr>
   `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
 }
@@ -3091,6 +3182,9 @@ $('btnClearGlobalFilter').addEventListener('click', () => {
   $('gfKanwil').value=''; refreshKancaOptions(); $('gfKanca').value=''; refreshUkerOptions(); $('gfUker').value=''; refreshRmOptions(); $('gfRm').value=''; $('gfRmFt').value='';
   applyGlobalFilter();
 });
+$('rkModalClose').addEventListener('click', closeRekeningKoranModal);
+$('rkModalOverlay').addEventListener('click', e => { if(e.target === $('rkModalOverlay')) closeRekeningKoranModal(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeRekeningKoranModal(); });
 document.addEventListener('click', e => {
   const th = e.target.closest('th.sortable');
   if(!th || !$('custTable').contains(th)) return;
