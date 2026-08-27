@@ -355,11 +355,13 @@ table.data-table .ctr{text-align:center}
 .partner-table.success table.data-table th:hover{background:var(--success)}
 .partner-table.success table.data-table tbody tr:nth-child(even) td{background:#e5f6ef}
 .partner-table.success table.data-table tr:hover td{background:#e5f6ef}
+.partner-table.success table.data-table td{border-bottom-color:#bfe6d6;border-right-color:#bfe6d6}
 .partner-table.warning{border-left-color:var(--warning)}
 .partner-table.warning table.data-table th{background:var(--warning)}
 .partner-table.warning table.data-table th:hover{background:var(--warning)}
 .partner-table.warning table.data-table tbody tr:nth-child(even) td{background:#fdf3dc}
 .partner-table.warning table.data-table tr:hover td{background:#fdf3dc}
+.partner-table.warning table.data-table td{border-bottom-color:#f2ddaa;border-right-color:#f2ddaa}
 .rekkoran-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px}
 .sim-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;background:var(--warning);color:#fff;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle}
 .pipeline-badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:14px}
@@ -550,20 +552,12 @@ table.data-table td.empty{text-align:center}
       </div>
       <div class="charts-grid charts-grid-2x2">
         <div class="chart-card">
-          <h3>Top 10 Nasabah, Baki Debet Pinjaman</h3>
+          <h3>Top 10 Nasabah Pinjaman</h3>
           <div class="chart-canvas-wrap"><canvas id="chartTopDebet"></canvas></div>
         </div>
         <div class="chart-card">
           <h3>Top 10 Nasabah Simpanan</h3>
-          <div class="table-wrap" style="height:280px;overflow-y:auto">
-            <table class="data-table" id="priorityReviewTable">
-              <thead><tr>
-                <th>Nasabah</th>
-                <th class="num">Total Simpanan</th>
-              </tr></thead>
-              <tbody id="priorityReviewBody"></tbody>
-            </table>
-          </div>
+          <div class="chart-canvas-wrap"><canvas id="chartTopSimpanan"></canvas></div>
         </div>
         <div class="chart-card">
           <h3>Distribusi DPK to Loan Nasabah</h3>
@@ -2081,7 +2075,6 @@ function applyGlobalFilter(){
   applyCustFilters();
   renderOppGrid();
   renderCharts();
-  renderPriorityReviewTable();
   renderRmPairingTable();
 }
 /* Pre-selects the filter to a specific branch on first load so the dashboard
@@ -3028,7 +3021,7 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
    CHARTS
    ================================================================= */
 function renderCharts(){
-  const OVERVIEW_CHART_KEYS = ['topDebet','coverageDist'];
+  const OVERVIEW_CHART_KEYS = ['topDebet','topSimpanan','coverageDist'];
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
   const barValueLabelPlugin = {
@@ -3055,6 +3048,12 @@ function renderCharts(){
     data:{labels:topDebet.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Baki Debet', data:topDebet.map(c=>c.totalBakiDebet), backgroundColor:'#0856c3', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
   });
+  const topSimpanan = custs.slice().sort((a,b)=>b.totalFunding-a.totalFunding).slice(0,10);
+  State.charts.topSimpanan = new Chart($('chartTopSimpanan'), {
+    type:'bar',
+    data:{labels:topSimpanan.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Total Simpanan', data:topSimpanan.map(c=>c.totalFunding), backgroundColor:'#2e78d6', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
+  });
   // DPK to Loan bucketed by range, so it's obvious at a glance how many
   // customers have little-to-no funding relationship vs. a well-covered one.
   // 0–10% split into 0–5%/5–10% to line up with the <5%/≥5% threshold above.
@@ -3079,22 +3078,6 @@ function renderCharts(){
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
     plugins:[barValueLabelPlugin]
   });
-}
-/* Top 10 Nasabah Simpanan — the customers with the largest total simpanan
-   (Tabungan + Giro + Deposito), as a quick-scan ranking for RM review
-   focus. Rows are clickable and jump straight to Profil Nasabah. */
-function renderPriorityReviewTable(){
-  const custs = getScopedCustomers();
-  const list = custs
-    .slice()
-    .sort((a,b) => b.totalFunding - a.totalFunding)
-    .slice(0, 10);
-  $('priorityReviewBody').innerHTML = list.length ? list.map(c => `
-    <tr>
-      <td><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(c.cif)}')"><strong>${escapeHtml(c.nama)}</strong></a></td>
-      <td class="num">${fmtRupiah(c.totalFunding)}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pada scope filter saat ini.</td></tr>';
 }
 /* RM Pairing ranking table (Ringkasan 2x2 grid, 4th panel) — groups the
    scoped customer list by RM Pengelola Kredit (RM SME), resolves each one's
@@ -3152,12 +3135,29 @@ function exportToExcel(){
     const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryRows]);
     wsSummary['!cols'] = summaryHeader.map(h=>({wch:Math.max(14,h.length+2)}));
     XLSX.utils.book_append_sheet(wb, wsSummary, 'Profil Nasabah');
+    // Prioritas Pengelolaan sheet, right after Profil Nasabah — a minimal
+    // reference for who's flagged "Perlu Kunjungan" (DPK to Loan <5%) vs
+    // "Sehat", same computation and population as the Prioritas Pengelolaan
+    // tab (computePriorityData/State.priority), not the full detail already
+    // covered by the summary sheet above.
+    computePriorityData();
+    const priorityRows = (State.priority?.list || []).map(r => [
+      r.c.nama, r.c.cif, r.c.uker, r.c.totalBakiDebet, +(r.cov*100).toFixed(2), QUAD_DEFS[r.quad].label
+    ]);
+    const priorityHeader = ['Nama Nasabah','CIF','Unit Kerja','Baki Debet','DPK to Loan (%)','Status'];
+    const wsPriority = XLSX.utils.aoa_to_sheet([priorityHeader, ...priorityRows]);
+    wsPriority['!cols'] = priorityHeader.map(h=>({wch:Math.max(14,h.length+2)}));
+    XLSX.utils.book_append_sheet(wb, wsPriority, 'Prioritas Pengelolaan');
     // Excel sheet names can't contain : \ / ? * [ ] and must be ≤31 chars —
     // "Ekosistem EDC/QRIS" has a "/" in it, which silently produces a file
     // Excel has to "repair" on open (this was the actual reason the export
     // wasn't reliably usable, not a missing-feature issue).
     const sanitizeSheetName = name => name.replace(/[:\\\/?*\[\]]/g, '-').slice(0, 31);
-    Object.keys(OPP_DEFS).forEach(k => {
+    // Quality/Recovery (kolWatch) are portfolio quality/risk-monitoring
+    // categories, not growth opportunities (see OPP_GRID_KEYS) — they were
+    // already dropped from the on-screen Peluang Pengembangan grid, so the
+    // export shouldn't carry sheets for them either.
+    OPP_GRID_KEYS.forEach(k => {
       const list = State.oppCategories[k] || [];
       // "Pinjaman" (RM SME) draws from the unified pinjaman-opportunity list
       // built by buildPinjamanOppList() — a different shape (cif/nama/
