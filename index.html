@@ -1095,24 +1095,43 @@ function rekKoranMonthLabel(y, m){
   return `${names[m]} ${y}`;
 }
 /* Named customers for whom we have REAL rekening koran data instead of the
-   simulation above — currently just Buana Paksa (6 bulan, Nov 2025–Apr
-   2026, OCR'd from the customer's actual BRI mutasi/BRISIM export; figures
-   verified against the raw transaction rows: junk OCR page-break rows
-   dropped, day-weighted average balance). Karya Satria is pending — add its
-   real entries here once that mutasi export is provided; until then it
-   falls back to the simulation like everyone else. Matched by normalized
-   name (real portfolio exports don't carry an "is this the sample case"
-   flag), tolerant of a badan-usaha prefix/suffix (PT/CV/UD/etc.) since the
-   real LW321 record may list it as "BUANA PAKSA", "CV BUANA PAKSA", or
-   "BUANA PAKSA CV". */
+   simulation above — OCR'd from each customer's actual BRI mutasi/BRISIM
+   export; figures verified against the raw transaction rows: junk OCR
+   page-break rows dropped, day-weighted average balance. Matched by
+   normalized name (real portfolio exports don't carry an "is this the
+   sample case" flag), tolerant of a badan-usaha prefix/suffix (PT/CV/UD/etc.)
+   since the real LW321 record may list it as "BUANA PAKSA", "CV BUANA
+   PAKSA", or "BUANA PAKSA CV".
+   - BUANA PAKSA: full 12 bulan, Mei 2025–Apr 2026.
+   - KARYA SATRIA: 10 dari 12 bulan yang dijanjikan (Jul–Okt 2025, Des
+     2025–Apr 2026, Jun 2026) — Nov 2025 dan Mei 2026 belum ke-upload,
+     menunggu 2 file itu untuk melengkapi jadi 12 bulan penuh. */
 const REAL_REKENING_KORAN = {
   'BUANA PAKSA': [
+    {year:2025, month:5,  freq:10, totalCredit:3046176240,  totalDebit:1358505074,avgDailyBalance:349283184},
+    {year:2025, month:6,  freq:24, totalCredit:62513794,    totalDebit:1571825588,avgDailyBalance:566950620},
+    {year:2025, month:7,  freq:17, totalCredit:38161871,    totalDebit:150024874, avgDailyBalance:99538657},
+    {year:2025, month:8,  freq:24, totalCredit:134471305,   totalDebit:22030101,  avgDailyBalance:133967235},
+    {year:2025, month:9,  freq:21, totalCredit:51502080,    totalDebit:115803716, avgDailyBalance:124337332},
+    {year:2025, month:10, freq:28, totalCredit:114625416,   totalDebit:115658383, avgDailyBalance:102729400},
     {year:2025, month:11, freq:23, totalCredit:98627068,    totalDebit:15034,     avgDailyBalance:174052239},
     {year:2025, month:12, freq:30, totalCredit:1787649520,  totalDebit:586766034, avgDailyBalance:287137090},
     {year:2026, month:1,  freq:50, totalCredit:1135774937,  totalDebit:1843807987,avgDailyBalance:531146846},
     {year:2026, month:2,  freq:29, totalCredit:222400467,   totalDebit:653005041, avgDailyBalance:595908063},
     {year:2026, month:3,  freq:24, totalCredit:142380945,   totalDebit:3519089,   avgDailyBalance:374753080},
     {year:2026, month:4,  freq:35, totalCredit:82583382,    totalDebit:379640318, avgDailyBalance:193707743},
+  ].map(e => ({...e, simulated:false})),
+  'KARYA SATRIA': [
+    {year:2025, month:7,  freq:9,  totalCredit:151248275,   totalDebit:34965843,  avgDailyBalance:133086009},
+    {year:2025, month:8,  freq:12, totalCredit:77613416,    totalDebit:98698286,  avgDailyBalance:186357862},
+    {year:2025, month:9,  freq:13, totalCredit:449347997,   totalDebit:77548940,  avgDailyBalance:269899936},
+    {year:2025, month:10, freq:16, totalCredit:12112407,    totalDebit:394815655, avgDailyBalance:434492380},
+    {year:2025, month:12, freq:20, totalCredit:78761883,    totalDebit:282113835, avgDailyBalance:418694554},
+    {year:2026, month:1,  freq:19, totalCredit:343519073,   totalDebit:530278503, avgDailyBalance:329861097},
+    {year:2026, month:2,  freq:10, totalCredit:4582831,     totalDebit:35696178,  avgDailyBalance:113000820},
+    {year:2026, month:3,  freq:12, totalCredit:100025036,   totalDebit:88376185,  avgDailyBalance:93328189},
+    {year:2026, month:4,  freq:16, totalCredit:500892260,   totalDebit:530109117, avgDailyBalance:125967265},
+    {year:2026, month:6,  freq:19, totalCredit:173137691,   totalDebit:176481235, avgDailyBalance:78872362},
   ].map(e => ({...e, simulated:false})),
 };
 function lookupRealRekeningKoran(nama){
