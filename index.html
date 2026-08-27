@@ -145,11 +145,13 @@ body{
 }
 .gf-pill{display:flex;flex-direction:column;min-width:190px}
 .gf-pill label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:700;margin-bottom:3px}
-.gf-pill select{
+.gf-pill select, .gf-pill input.gf-combo-input{
   padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
   font-size:13px;font-weight:600;color:var(--brand-darker);background:var(--surface-alt);
 }
-.gf-pill select:focus{outline:none;border-color:var(--brand)}
+.gf-pill select:focus, .gf-pill input.gf-combo-input:focus{outline:none;border-color:var(--brand)}
+.gf-pill input.gf-combo-input{width:100%;box-sizing:border-box;font-family:inherit}
+.gf-pill input.gf-combo-input::placeholder{color:var(--text-muted);font-weight:600;opacity:1}
 .gf-hint{font-size:11.5px;color:var(--text-soft);align-self:center}
 .stats-grid{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
@@ -458,23 +460,28 @@ table.data-table td.empty{text-align:center}
     <div class="global-filter-bar no-print">
       <div class="gf-pill">
         <label>Regional Office</label>
-        <select id="gfKanwil"><option value="">Semua Regional</option></select>
+        <input class="gf-combo-input" id="gfKanwil" list="gfKanwilList" placeholder="Semua Regional" autocomplete="off">
+        <datalist id="gfKanwilList"></datalist>
       </div>
       <div class="gf-pill">
         <label>Branch Office</label>
-        <select id="gfKanca"><option value="">Semua Cabang</option></select>
+        <input class="gf-combo-input" id="gfKanca" list="gfKancaList" placeholder="Semua Cabang" autocomplete="off">
+        <datalist id="gfKancaList"></datalist>
       </div>
       <div class="gf-pill">
         <label>Unit Kerja</label>
-        <select id="gfUker"><option value="">Semua Unit Kerja</option></select>
+        <input class="gf-combo-input" id="gfUker" list="gfUkerList" placeholder="Semua Unit Kerja" autocomplete="off">
+        <datalist id="gfUkerList"></datalist>
       </div>
       <div class="gf-pill">
         <label>RM Pengelola Kredit</label>
-        <select id="gfRm"><option value="">Semua RM</option></select>
+        <input class="gf-combo-input" id="gfRm" list="gfRmList" placeholder="Semua RM — ketik untuk cari" autocomplete="off">
+        <datalist id="gfRmList"></datalist>
       </div>
       <div class="gf-pill">
         <label>RM Pengelola FT</label>
-        <select id="gfRmFt"><option value="">Semua RM FT</option></select>
+        <input class="gf-combo-input" id="gfRmFt" list="gfRmFtList" placeholder="Semua RM FT — ketik untuk cari" autocomplete="off">
+        <datalist id="gfRmFtList"></datalist>
       </div>
       <button class="btn btn-outline btn-sm" id="btnClearGlobalFilter">Reset Filter</button>
       <span class="gf-hint" id="gfHint"></span>
@@ -1658,7 +1665,7 @@ function buildCustomers(){
    ================================================================= */
 const OPP_DEFS = {
   pinjaman:        {tag:'PINJAMAN', label:'Peluang Pinjaman', owner:'SME + Validasi FT', sub:'Tidak memiliki fasilitas kredit aktif di BRI, DAN tervalidasi rekening koran memenuhi Pipeline CASA Optimal atau Pipeline Transaksi Optimal (Ketentuan Ekspansi Kredit Segmen SME 2026).', rec:'Kandidat pipeline kredit tervalidasi — ratas saldo CASA & frekuensi/volume transaksinya sudah memenuhi ambang batas ekspansi kredit SME, RM SME bisa tap-in menawarkan fasilitas kredit (modal kerja/investasi). Prioritaskan nasabah badan usaha (PT/CV/UD/dll) dibanding perorangan.'},
-  cashCollateral:  {tag:'CASH COLLATERAL', label:'Cross-sell Cash Collateral', owner:'SME + FT', sub:'Sudah punya Deposito di BRI, namun sedang tidak memiliki fasilitas kredit aktif — dana yang mengendap bisa langsung jadi agunan.', rec:'Tawarkan Kredit Cash Collateral (modal kerja/investasi dengan jaminan deposito) — risiko rendah dan proses cepat karena agunannya dana tunai milik nasabah sendiri, bukan aset yang perlu dinilai.'},
+  cashCollateral:  {tag:'CASH COLLATERAL', label:'Cross-sell Cash Collateral', owner:'SME + FT', sub:'Sudah punya Deposito di BRI, namun sedang tidak memiliki fasilitas kredit aktif — deposito ini berpotensi ditawarkan sebagai jaminan Kredit Cash Collateral.', rec:'Tawarkan Kredit Cash Collateral (modal kerja/investasi dengan jaminan deposito) — proses relatif lebih cepat karena jaminannya berupa dana tunai milik nasabah sendiri, namun tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku.'},
   crossSellMerchant:{tag:'MERCHANT', label:'Cross-sell Merchant (EDC/QRIS)', owner:'FT', sub:'Tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant (ratas CASA ≥ Rp100 juta/bulan & frekuensi ≥ 100x/bulan) namun EDC dan/atau QRIS-nya belum lengkap.', rec:'Pola transaksinya sudah setara merchant aktif — tawarkan EDC dan/atau QRIS sesuai yang belum dimiliki, sinyal akuisisi kuat karena aktivitas transaksinya sudah terbukti tinggi.'},
   quality:         {tag:'QUALITY', label:'Quality — Monitoring Lanjutan', owner:'SME', sub:'Debitur kelolaan RM dengan kolektibilitas Kol 2 — perlu monitoring lebih lanjut sebelum memburuk ke Kol 3 ke atas.', rec:'Pantau komitmen pembayaran dan telusuri penyebab tunggakan; koordinasi RM SME & RM FT agar tidak turun ke Kol 3 (Recovery).'},
   kolWatch:        {tag:'RECOVERY', label:'Recovery — Monitoring Kolektibilitas', owner:'SME', sub:'Kolektibilitas terburuk berada di Kol 3 ke atas — belum masuk kategori cross-sell sampai kembali ke Kol 1.', rec:'Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan; koordinasi RM SME & RM FT untuk joint OTS, atau fokus recovery/restrukturisasi untuk Kol 3-5.'},
@@ -1706,6 +1713,7 @@ function buildPinjamanOppList(){
     const saldo = p.tabunganSum + p.giroSum + (p.depositoSum||0) + p.edcSum + p.qrisSum;
     entries.push({cif:p.cif, nama:p.nama, produk, saldo, openDt:p.latestOpenDt, ukerCode:p.ukerCode||'-', everHadLoan:false, pipelineEval:p.pipelineEval,
       tabunganSum:p.tabunganSum, giroSum:p.giroSum, depositoSum:p.depositoSum||0, edcSum:p.edcSum, qrisSum:p.qrisSum,
+      rmSme:null, rmFt:p.rmFundingList||[],
       noCifMatch: String(p.cif).startsWith('DEP:')});
   });
   getOppScopedCustomers().forEach(c => {
@@ -1719,7 +1727,8 @@ function buildPinjamanOppList(){
     const dt = cleanStr(c.tabungan[0]?.openDt) || cleanStr(c.giro[0]?.openDate) || '';
     entries.push({cif:c.cif, nama:c.nama, produk, saldo:c.totalFunding, openDt:dt, ukerCode:c.uker, everHadLoan:true, pipelineEval:c.pipelineEval, worstKol:c.worstKol,
       tabunganSum:c.totalTabungan, giroSum:c.totalGiro, depositoSum:c.totalDeposito,
-      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0)});
+      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0),
+      rmSme:c.rmPengelola, rmFt:c.rmFundingList||[]});
   });
   // Badan usaha (PT/CV/UD/dll) first — a business entity is the priority
   // target for RM SME's credit expansion push, ahead of perorangan; within
@@ -1753,6 +1762,7 @@ function buildCashCollateralOppList(){
     entries.push({cif:p.cif, nama:p.nama, produk, saldo:p.tabunganSum+p.giroSum+p.depositoSum+p.edcSum+p.qrisSum,
       openDt:p.latestOpenDt, ukerCode:p.ukerCode||'-', everHadLoan:false,
       tabunganSum:p.tabunganSum, giroSum:p.giroSum, depositoSum:p.depositoSum, edcSum:p.edcSum, qrisSum:p.qrisSum,
+      rmSme:null, rmFt:p.rmFundingList||[],
       noCifMatch: String(p.cif).startsWith('DEP:')});
   });
   getOppScopedCustomers().forEach(c => {
@@ -1760,7 +1770,8 @@ function buildCashCollateralOppList(){
     entries.push({cif:c.cif, nama:c.nama, produk:['Deposito'], saldo:c.totalFunding,
       openDt:'', ukerCode:c.uker, everHadLoan:true, worstKol:c.worstKol,
       tabunganSum:c.totalTabungan, giroSum:c.totalGiro, depositoSum:c.totalDeposito,
-      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0)});
+      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0),
+      rmSme:c.rmPengelola, rmFt:c.rmFundingList||[]});
   });
   entries.sort((a,b) => (b.depositoSum||0) - (a.depositoSum||0));
   return entries;
@@ -1768,27 +1779,31 @@ function buildCashCollateralOppList(){
 /* ===================================================================
    GLOBAL FILTER BAR (Regional Office / Branch Office / Unit Kerja)
    ================================================================= */
+/* Regional Office / Branch Office / Unit Kerja / RM Pengelola Kredit / RM
+   Pengelola FT are all <input list="..."> combo boxes (a plain text input
+   paired with a <datalist>) instead of plain <select> — with real portfolios
+   the RM list in particular can run to dozens/hundreds of names, and a
+   flat <select> makes finding one a lot of scrolling. The datalist lets the
+   user type to narrow the suggestions live while keeping the exact same
+   .value-based read/filter logic as before (empty value = no filter). */
 function populateGlobalFilterOptions(){
   const all = [...State.customers.values()];
   const kanwilSet = new Set(all.map(c=>c.kanwil).filter(Boolean));
-  $('gfKanwil').innerHTML = '<option value="">Semua Regional</option>' +
-    [...kanwilSet].sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  $('gfKanwilList').innerHTML = [...kanwilSet].sort().map(v=>`<option value="${escapeHtml(v)}">`).join('');
   refreshKancaOptions();
 }
 function refreshKancaOptions(){
   const kanwil = $('gfKanwil').value;
   const all = [...State.customers.values()].filter(c => !kanwil || c.kanwil===kanwil);
   const kancaSet = new Set(all.map(c=>c.kanca).filter(Boolean));
-  $('gfKanca').innerHTML = '<option value="">Semua Cabang</option>' +
-    [...kancaSet].sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  $('gfKancaList').innerHTML = [...kancaSet].sort().map(v=>`<option value="${escapeHtml(v)}">`).join('');
   refreshUkerOptions();
 }
 function refreshUkerOptions(){
   const kanwil = $('gfKanwil').value, kanca = $('gfKanca').value;
   const all = [...State.customers.values()].filter(c => (!kanwil || c.kanwil===kanwil) && (!kanca || c.kanca===kanca));
   const ukerSet = new Set(all.map(c=>c.uker).filter(Boolean));
-  $('gfUker').innerHTML = '<option value="">Semua Unit Kerja</option>' +
-    [...ukerSet].sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  $('gfUkerList').innerHTML = [...ukerSet].sort().map(v=>`<option value="${escapeHtml(v)}">`).join('');
   refreshRmOptions();
 }
 function refreshRmOptions(){
@@ -1796,8 +1811,7 @@ function refreshRmOptions(){
   const all = [...State.customers.values()].filter(c =>
     (!kanwil || c.kanwil===kanwil) && (!kanca || c.kanca===kanca) && (!uker || c.uker===uker));
   const rmSet = new Set(all.map(c=>c.rmPengelola).filter(v => v && v !== '-'));
-  $('gfRm').innerHTML = '<option value="">Semua RM</option>' +
-    [...rmSet].sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  $('gfRmList').innerHTML = [...rmSet].sort().map(v=>`<option value="${escapeHtml(v)}">`).join('');
   refreshRmFtOptions();
 }
 function refreshRmFtOptions(){
@@ -1805,8 +1819,7 @@ function refreshRmFtOptions(){
   const all = [...State.customers.values()].filter(c =>
     (!kanwil || c.kanwil===kanwil) && (!kanca || c.kanca===kanca) && (!uker || c.uker===uker));
   const rmFtSet = new Set(all.flatMap(c => c.rmFundingList));
-  $('gfRmFt').innerHTML = '<option value="">Semua RM FT</option>' +
-    [...rmFtSet].sort().map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  $('gfRmFtList').innerHTML = [...rmFtSet].sort().map(v=>`<option value="${escapeHtml(v)}">`).join('');
 }
 function applyGlobalFilter(){
   State.globalFilter = {kanwil:$('gfKanwil').value, kanca:$('gfKanca').value, uker:$('gfUker').value, rm:$('gfRm').value, rmFt:$('gfRmFt').value};
@@ -1823,18 +1836,22 @@ function applyGlobalFilter(){
    opens already scoped to the user's own unit kerja, instead of "Semua".
    Falls back silently (stays on "Semua") if no match is found in the data. */
 function applyDefaultRegionSelection(kanwilHint, kancaHint, ukerHint){
-  const kanwilOpt = [...$('gfKanwil').options].find(o => o.value && o.value.toLowerCase().includes(kanwilHint.toLowerCase()));
+  // gfKanwil/gfKanca/gfUker are now <input list="..."> combo boxes (see
+  // populateGlobalFilterOptions) — the candidate values live in their
+  // paired <datalist>'s .options, not the input element's own (plain inputs
+  // don't have an .options collection).
+  const kanwilOpt = [...$('gfKanwilList').options].find(o => o.value && o.value.toLowerCase().includes(kanwilHint.toLowerCase()));
   if(kanwilOpt){
     $('gfKanwil').value = kanwilOpt.value;
     refreshKancaOptions();
   }
-  const kancaOpt = [...$('gfKanca').options].find(o => o.value && o.value.toLowerCase().includes(kancaHint.toLowerCase()));
+  const kancaOpt = [...$('gfKancaList').options].find(o => o.value && o.value.toLowerCase().includes(kancaHint.toLowerCase()));
   if(kancaOpt){
     $('gfKanca').value = kancaOpt.value;
     refreshUkerOptions();
   }
   if(ukerHint){
-    const ukerOpt = [...$('gfUker').options].find(o => o.value && o.value.toLowerCase().includes(ukerHint.toLowerCase()));
+    const ukerOpt = [...$('gfUkerList').options].find(o => o.value && o.value.toLowerCase().includes(ukerHint.toLowerCase()));
     if(ukerOpt) $('gfUker').value = ukerOpt.value;
   }
 }
@@ -2104,7 +2121,15 @@ function renderOpportunityRecommendations(c){
   } else if(kol === 2){
     notes.push(`<div class="rec-note" style="border-left-color:var(--warning);background:#fdf3dd;color:#7a5a06"><strong>Monitoring (Kol 2 - Dalam Perhatian Khusus):</strong> Perlu monitoring komitmen pembayaran dan penelusuran penyebab tunggakan sebelum kualitas memburuk lebih lanjut.</div>`);
   } else if(kol === 1 && c.priorityQuad === 'needsVisit'){
-    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan masih rendah (&lt;5%, lihat tab Prioritas Pengelolaan) — peluang kuat untuk kunjungan bersama RM SME &amp; RM FT guna memperdalam relationship funding.</div>`);
+    // Instead of a vague "kunjungan bersama untuk memperdalam relationship"
+    // (too general to act on), compute exactly how much CASA/funding needs
+    // to be topped up to clear the Deposit to Loan threshold, and say that
+    // directly — RM should walk in already knowing the number to ask for.
+    const threshold = (State.priority && State.priority.p25Cov != null) ? State.priority.p25Cov : 0.05;
+    const pct = (c.fundingCoverage||0) * 100;
+    const targetFunding = c.totalBakiDebet * threshold;
+    const gap = Math.max(0, targetFunding - c.totalFunding);
+    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun Deposit to Loan baru ${pct.toFixed(1)}% (di bawah ambang batas ${(threshold*100).toFixed(0)}%, lihat tab Prioritas Pengelolaan) — perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
   }
   // Product cross-sell opportunities are only pushed for Kol 1 accounts —
   // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
@@ -2199,7 +2224,7 @@ function renderRekeningKoranSection(c){
           <div class="stat-value">${fmtRupiah(Math.round(ev.overallAvgCredit||0))}</div>
           <div class="stat-sub">Berdasarkan ${n} bulan${isReal?'':' data simulasi'}</div>
         </div>
-        <div class="stat-card accent">
+        <div class="stat-card warning">
           <div class="stat-label">Rata-rata Pembelian / Bulan (Transaksi Debit)</div>
           <div class="stat-value">${fmtRupiah(Math.round(ev.overallAvgDebit||0))}</div>
           <div class="stat-sub">Berdasarkan ${n} bulan${isReal?'':' data simulasi'}</div>
@@ -2364,7 +2389,7 @@ function buildProspectOppNote(p, key){
     : '';
   if(key === 'cashCollateral'){
     const kolNote = p.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
-    return `<div class="rec-note" style="margin-top:8px">${namaStr} punya Deposito senilai ${fmtRupiah(p.depositoSum||0)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — dana ini bisa langsung dijadikan agunan untuk Kredit Cash Collateral tanpa perlu penilaian jaminan tambahan${kolNote}${cifNote}</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${namaStr} punya Deposito senilai ${fmtRupiah(p.depositoSum||0)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — deposito ini berpotensi ditawarkan sebagai jaminan untuk Kredit Cash Collateral (proses tetap melalui evaluasi dan persetujuan kredit sesuai ketentuan yang berlaku)${kolNote}${cifNote}</div>`;
   }
   const statusStr = p.everHadLoan
     ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)'
@@ -2423,6 +2448,8 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">CIF</span><span class="val">${escapeHtml(p.cif)}</span></div>
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Total Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
+          <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(p.rmSme || '-')}</span></div>
+          <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
           ${rows}
         </div>
         ${buildProspectOppNote(p, k)}
@@ -2452,6 +2479,7 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">Baki Debet</span><span class="val">${fmtRupiah(c.totalBakiDebet)}</span></div>
         <div class="detail-field"><span class="lbl">Total Funding</span><span class="val">${fmtRupiah(c.totalFunding)}</span></div>
         <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
+        <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((c.rmFundingList && c.rmFundingList.length) ? c.rmFundingList.join(', ') : '-')}</span></div>
       </div>
       ${buildOppInsightNote(c, k)}
     </div>
@@ -3030,6 +3058,13 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
     t.classList.add('active');
     $('panel-'+t.dataset.panel).classList.add('active');
+    // The "Menampilkan X dari Y nasabah" global hint is a flat customer
+    // count — meaningful next to the Profil Nasabah table/Ringkasan/
+    // Prioritas Pengelolaan, but confusing on Peluang Pengembangan (that tab
+    // is broken out by opportunity category, e.g. "935" Peluang Pinjaman,
+    // "1070" Cash Collateral — none of which is the flat total, so showing
+    // the flat total right above them read as a mismatched/stray number).
+    $('gfHint').style.display = t.dataset.panel === 'opportunity' ? 'none' : '';
     // The remaining charts here are real Chart.js canvases (Overview tab) —
     // those can still end up wrongly sized if created while hidden, so give
     // them a resize nudge once their tab becomes visible. The Priority Matrix
