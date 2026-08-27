@@ -766,6 +766,42 @@ const RM_PAIRING = [
   {rmFt:'Ika Bekti Aryani', rmSme:'Bima Antariksa'},
   {rmFt:'Mutiara Shafa', rmSme:'FL Susetyo Aryadi'},
 ];
+/* Data-driven RM SME ↔ RM FT pairing — instead of relying only on a
+   hardcoded list (which only covers RMs from one specific SK document and
+   silently produces nothing for anyone else), infer each RM SME's most
+   frequent RM FT partner directly from the portfolio itself: for every RM
+   SME's loan customers, look at who manages THEIR funding accounts
+   (rmFundingList) — whichever RM FT shows up most often across those
+   customers is almost certainly their paired partner in practice, since
+   that's exactly what a real SK pairing produces in the data. Works for any
+   RM automatically, with no hardcoded list to maintain. Extracted out of
+   buildCustomers so the demo dataset (loadDummyDashboard) can compute the
+   same thing and actually exercise the RM SME ↔ RM FT reciprocal-visibility
+   widening below (getOppScopedCustomers/getScopedFundingOnlyProspects) —
+   without this, the demo's canned RM_PAIRING table (a different branch's
+   real SK document) never matches its made-up RM names, so filtering by RM
+   in the demo silently looked like the reciprocal visibility didn't work at
+   all, when it was really just untested there. */
+function computeInferredRmPairing(customersMap){
+  const pairCounts = new Map(); // rmSme -> Map(rmFt -> count)
+  customersMap.forEach(c => {
+    const rmSme = c.rmPengelola;
+    if(!rmSme || rmSme === '-') return;
+    (c.rmFundingList || []).forEach(rmFt => {
+      if(!rmFt || rmFt === '-') return;
+      if(!pairCounts.has(rmSme)) pairCounts.set(rmSme, new Map());
+      const m = pairCounts.get(rmSme);
+      m.set(rmFt, (m.get(rmFt)||0) + 1);
+    });
+  });
+  const inferredPairing = new Map();
+  pairCounts.forEach((ftCounts, rmSme) => {
+    let bestFt = null, bestCount = 0;
+    ftCounts.forEach((count, ft) => { if(count > bestCount){ bestCount = count; bestFt = ft; } });
+    if(bestFt) inferredPairing.set(rmSme, bestFt);
+  });
+  return inferredPairing;
+}
 function findPairedRmFt(rmSmeValue){
   if(!rmSmeValue) return null;
   // Prefer the data-driven inference computed in buildCustomers — it works
@@ -1339,16 +1375,20 @@ function buildCustomers(){
   // earlier version of this feature did — that made every render function
   // touch a bigger customer set and was the actual performance regression;
   // keeping it as its own small array keeps the core universe untouched.
-  const diagCounts = {DI319:{total:0,matched:0}, DI321:{total:0,matched:0}, CI324:{total:0,matched:0,fuzzy:0}, EDC:{total:0,matched:0}, QRIS:{total:0,matched:0}};
+  const diagCounts = {DI319:{total:0,matched:0}, DI321:{total:0,matched:0}, CI324:{total:0,matched:0,fuzzy:0,newProspect:0}, EDC:{total:0,matched:0}, QRIS:{total:0,matched:0}};
   // Funding/merchant-only prospects — customers with NO CIF match anywhere in
   // LW321, aggregated ONE ENTRY PER CIF across all their products (an
   // earlier version kept only their single newest product, which
   // under-counted anyone with more than one — e.g. someone with both
   // Tabungan and QRIS would only show up as one or the other). Deposito
-  // still can't be captured here: CI324 has no CIF column at all, so a
-  // name-only match only ever works against customers already in LW321 — a
-  // genuinely new deposito-only prospect can never be identified from that
-  // file alone, which is a real data limitation, not a bug.
+  // (CI324) is processed LAST, after DI319/DI321/EDC/QRIS have all had a
+  // chance to populate prospectMap — a deposito holder unmatched against
+  // `customers` (LW321) now ALSO gets a chance to match an already-known
+  // prospect by name (someone with e.g. Tabungan but no loan), and failing
+  // that, gets a brand-new synthetic-key prospect of their own so a
+  // genuinely deposito-only, no-other-product, no-loan customer isn't
+  // silently dropped — that used to be a real gap: Cash Collateral could
+  // only ever fire for people who'd been LW321 customers at some point.
   //
   // Kanwil/Kanca/Uker for prospects: DI319/DI321 only carry a raw uker CODE,
   // not the branch name text the global filter uses — so build a code→name
@@ -1366,7 +1406,7 @@ function buildCustomers(){
   });
   const prospectMap = new Map();
   function getProspect(cif, nama, ukerCode){
-    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', kanwil:'', kanca:'', uker:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
+    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', kanwil:'', kanca:'', uker:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
     const p = prospectMap.get(cif);
     if(!p.nama && nama) p.nama = nama;
     if(!p.ukerCode && ukerCode){
@@ -1413,29 +1453,7 @@ function buildCustomers(){
       addProspectRmFt(p, row.pnPengelola);
     }
   });
-  // 4. Deposito (CI324) — no CIF column, match by normalized SHORT NAME vs NAMA_DEBITUR
-  const nameIndex = new Map(); // normName -> cif (first match); handles prefix-truncated short names too
-  const nameList = [];
-  customers.forEach((c, cif) => { const n = normName(c.nama); nameIndex.set(n, cif); nameList.push([n, cif]); });
-  (State.raw['CI324']||[]).forEach(row => {
-    diagCounts.CI324.total++;
-    const rn = normName(row.shortName);
-    let cif = nameIndex.get(rn);
-    let fuzzy = false;
-    if(!cif){
-      for(const [n, c] of nameList){
-        if(namesLikelyMatch(rn, n)){ cif = c; fuzzy = true; break; }
-      }
-    }
-    if(cif){
-      row._principal = parseNum(row.principal);
-      row._matchType = fuzzy ? 'name-fuzzy' : 'name-exact';
-      customers.get(cif).deposito.push(row);
-      diagCounts.CI324.matched++;
-      if(fuzzy) diagCounts.CI324.fuzzy++;
-    }
-  });
-  // 5. EDC merchant — exact CIFNO match
+  // 4. EDC merchant — exact CIFNO match
   (State.raw['EDC']||[]).forEach(row => {
     diagCounts.EDC.total++;
     const cif = cleanStr(row.cif);
@@ -1450,7 +1468,7 @@ function buildCustomers(){
       addProspectRmFt(p, combinePn(row.pnUser, row.namaUser));
     }
   });
-  // 6. QRIS merchant — exact CIF match
+  // 5. QRIS merchant — exact CIF match
   (State.raw['QRIS']||[]).forEach(row => {
     diagCounts.QRIS.total++;
     const cif = cleanStr(row.cif);
@@ -1463,6 +1481,86 @@ function buildCustomers(){
       const p = getProspect(cif, cleanStr(row.namaMerchant), '');
       p.qris++; p.qrisSum += parseNum(row.akumulasiSvTotal);
       addProspectRmFt(p, combinePn(row.pn, row.pnNama));
+    }
+  });
+  // 6. Deposito (CI324) — no CIF column at all, so this is name-matched in
+  // THREE tiers instead of the CIF lookups every other file gets:
+  //   a) an existing LW321 customer (loan on file) — unchanged behavior,
+  //      just attaches to c.deposito; this person already has a loan so
+  //      they're never a Cash Collateral candidate regardless.
+  //   b) an existing prospect already captured above from DI319/DI321/EDC/
+  //      QRIS (funding/merchant product, no loan) — adds the deposito onto
+  //      that SAME prospect rather than losing it or double-counting them.
+  //   c) nobody at all — a customer who ONLY ever appears in the Deposito
+  //      file. Gets a brand-new prospect keyed by a synthetic "DEP:<name>"
+  //      id (CI324 has no CIF to use as a real one) instead of being
+  //      silently dropped, which is what made Cash Collateral structurally
+  //      unable to ever fire for a genuinely deposito-only customer. No
+  //      branch/kanwil/kanca info is available for this tier (CI324 doesn't
+  //      carry it), so these fall outside a specific-branch filter until an
+  //      RM verifies and reconciles them manually — same "perlu verifikasi
+  //      manual" caveat this file's fuzzy name-matching already carries.
+  // Fuzzy name matching is an O(n) scan per unmatched row — fine at normal
+  // portfolio sizes, but with tens of thousands of customers+prospects it
+  // can add up across many CI324 rows, so above SCALE_SAFE_NAME_SCAN
+  // candidates the fuzzy fallback is skipped (exact match only) rather than
+  // risking the browser hanging on a big upload.
+  const SCALE_SAFE_NAME_SCAN = 20000;
+  const custNameIndex = new Map(); // normName -> cif (first match)
+  const custNameList = [];
+  customers.forEach((c, cif) => { const n = normName(c.nama); custNameIndex.set(n, cif); custNameList.push([n, cif]); });
+  const allowFuzzy = customers.size <= SCALE_SAFE_NAME_SCAN;
+  // Prospect name index — O(1) exact lookup, kept in sync as new prospect
+  // entries are added below (both from a tier-b match onto an existing
+  // prospect, which doesn't change its name, and a tier-c brand-new one,
+  // which does add a name) so a later CI324 row for the same person always
+  // resolves to the SAME prospect instead of creating a duplicate.
+  const prospectNameIndex = new Map(); // normName -> prospect key
+  prospectMap.forEach((p, key) => { if(p.nama) prospectNameIndex.set(normName(p.nama), key); });
+  const prospectNameList = [...prospectNameIndex.entries()]; // snapshot for fuzzy scan; appended to below
+  const allowProspectFuzzy = prospectMap.size <= SCALE_SAFE_NAME_SCAN;
+  (State.raw['CI324']||[]).forEach(row => {
+    diagCounts.CI324.total++;
+    const rn = normName(row.shortName);
+    let cif = custNameIndex.get(rn);
+    let fuzzy = false;
+    if(!cif && allowFuzzy){
+      for(const [n, c] of custNameList){
+        if(namesLikelyMatch(rn, n)){ cif = c; fuzzy = true; break; }
+      }
+    }
+    if(cif){
+      row._principal = parseNum(row.principal);
+      row._matchType = fuzzy ? 'name-fuzzy' : 'name-exact';
+      customers.get(cif).deposito.push(row);
+      diagCounts.CI324.matched++;
+      if(fuzzy) diagCounts.CI324.fuzzy++;
+      return;
+    }
+    // Not an existing loan customer — try an existing prospect by name
+    // (tier b) via the O(1) index first, falling back to a fuzzy scan only
+    // when that misses.
+    let pKey = prospectNameIndex.get(rn);
+    let prospectFuzzy = false;
+    if(!pKey && allowProspectFuzzy){
+      for(const [n, k] of prospectNameList){ if(namesLikelyMatch(rn, n)){ pKey = k; prospectFuzzy = true; break; } }
+    }
+    const principal = parseNum(row.principal);
+    if(pKey){
+      const p = prospectMap.get(pKey);
+      p.deposito++; p.depositoSum += principal;
+      diagCounts.CI324.matched++;
+      if(prospectFuzzy) diagCounts.CI324.fuzzy++;
+    } else {
+      // Tier c — genuinely new, deposito-only prospect. Synthetic key so it
+      // never collides with a real CIF namespace.
+      const depKey = 'DEP:'+rn;
+      const p = getProspect(depKey, cleanStr(row.shortName), '');
+      p.deposito++; p.depositoSum += principal;
+      prospectNameIndex.set(rn, depKey);
+      prospectNameList.push([rn, depKey]);
+      diagCounts.CI324.matched++;
+      diagCounts.CI324.newProspect++;
     }
   });
   State.fundingOnlyProspects = [...prospectMap.values()].sort((a,b) => (b.latestOpenDt||'').localeCompare(a.latestOpenDt||''));
@@ -1553,34 +1651,7 @@ function buildCustomers(){
   State.customers = customers;
   State.customersVersion = (State.customersVersion||0) + 1;
   State.diag = diagCounts;
-  // Data-driven RM SME ↔ RM FT pairing — instead of relying only on a
-  // hardcoded list (which only covers RMs from one specific SK document and
-  // silently produces nothing for anyone else, e.g. Bima/Nuhisa/Sigit/Afun
-  // Meta/Rizky/Tri Okto not being in that list), infer each RM SME's most
-  // frequent RM FT partner directly from the portfolio itself: for every RM
-  // SME's loan customers, look at who manages THEIR funding accounts
-  // (rmFundingList) — whichever RM FT shows up most often across those
-  // customers is almost certainly their paired partner in practice, since
-  // that's exactly what a real SK pairing produces in the data. This works
-  // for any RM automatically, with no hardcoded list to maintain.
-  const pairCounts = new Map(); // rmSme -> Map(rmFt -> count)
-  customers.forEach(c => {
-    const rmSme = c.rmPengelola;
-    if(!rmSme || rmSme === '-') return;
-    (c.rmFundingList || []).forEach(rmFt => {
-      if(!rmFt || rmFt === '-') return;
-      if(!pairCounts.has(rmSme)) pairCounts.set(rmSme, new Map());
-      const m = pairCounts.get(rmSme);
-      m.set(rmFt, (m.get(rmFt)||0) + 1);
-    });
-  });
-  const inferredPairing = new Map();
-  pairCounts.forEach((ftCounts, rmSme) => {
-    let bestFt = null, bestCount = 0;
-    ftCounts.forEach((count, ft) => { if(count > bestCount){ bestCount = count; bestFt = ft; } });
-    if(bestFt) inferredPairing.set(rmSme, bestFt);
-  });
-  State.inferredRmPairing = inferredPairing;
+  State.inferredRmPairing = computeInferredRmPairing(customers);
 }
 /* ===================================================================
    OPPORTUNITY CATEGORY DEFINITIONS
@@ -1596,9 +1667,10 @@ function computeOppCategories(){
   const cats = {};
   Object.keys(OPP_DEFS).forEach(k => cats[k] = []);
   getOppScopedCustomers().forEach(c => {
-    c.opportunities.forEach(k => { if(k !== 'pinjaman' && cats[k]) cats[k].push(c); });
+    c.opportunities.forEach(k => { if(k !== 'pinjaman' && k !== 'cashCollateral' && cats[k]) cats[k].push(c); });
   });
   cats.pinjaman = buildPinjamanOppList();
+  cats.cashCollateral = buildCashCollateralOppList();
   State.oppCategories = cats;
 }
 /* "Pinjaman" (RM SME angle) — "sedang tidak memiliki fasilitas kredit", not
@@ -1612,13 +1684,17 @@ function computeOppCategories(){
         whatever Tabungan/Giro/Deposito/EDC/QRIS they already have.
    Sorted newest-first by account open date (best-effort — group 2 doesn't
    always have a clean single "open date", so it falls back to whichever
-   product-open-date is available, or sorts after dated entries if none is). */
+   product-open-date is available, or sorts after dated entries if none is).
+   Per-product balances (tabunganSum/giroSum/depositoSum/edcSum/qrisSum) are
+   carried on every entry — not just a lump saldo total — so the RM can see
+   the actual profile/balance breakdown without a separate lookup. */
 function buildPinjamanOppList(){
   const entries = [];
   getScopedFundingOnlyProspects().forEach(p => {
     const produk = [];
     if(p.tabungan) produk.push('Tabungan');
     if(p.giro) produk.push('Giro');
+    if(p.deposito) produk.push('Deposito');
     if(p.edc) produk.push('EDC');
     if(p.qris) produk.push('QRIS');
     if(!produk.length) return;
@@ -1627,8 +1703,10 @@ function buildPinjamanOppList(){
     // any funding product counts as a "loan opportunity", which produced an
     // unrealistically huge, meaningless count.
     if(!p.pipelineEval || !(p.pipelineEval.casaOptimal || p.pipelineEval.transaksiOptimal)) return;
-    const saldo = p.tabunganSum + p.giroSum + p.edcSum + p.qrisSum;
-    entries.push({cif:p.cif, nama:p.nama, produk, saldo, openDt:p.latestOpenDt, ukerCode:p.ukerCode, everHadLoan:false, pipelineEval:p.pipelineEval});
+    const saldo = p.tabunganSum + p.giroSum + (p.depositoSum||0) + p.edcSum + p.qrisSum;
+    entries.push({cif:p.cif, nama:p.nama, produk, saldo, openDt:p.latestOpenDt, ukerCode:p.ukerCode||'-', everHadLoan:false, pipelineEval:p.pipelineEval,
+      tabunganSum:p.tabunganSum, giroSum:p.giroSum, depositoSum:p.depositoSum||0, edcSum:p.edcSum, qrisSum:p.qrisSum,
+      noCifMatch: String(p.cif).startsWith('DEP:')});
   });
   getOppScopedCustomers().forEach(c => {
     if(!c.opportunities.includes('pinjaman')) return;
@@ -1639,7 +1717,9 @@ function buildPinjamanOppList(){
     if(c.edc.length) produk.push('EDC');
     if(c.qris.length) produk.push('QRIS');
     const dt = cleanStr(c.tabungan[0]?.openDt) || cleanStr(c.giro[0]?.openDate) || '';
-    entries.push({cif:c.cif, nama:c.nama, produk, saldo:c.totalFunding, openDt:dt, ukerCode:c.uker, everHadLoan:true, pipelineEval:c.pipelineEval});
+    entries.push({cif:c.cif, nama:c.nama, produk, saldo:c.totalFunding, openDt:dt, ukerCode:c.uker, everHadLoan:true, pipelineEval:c.pipelineEval, worstKol:c.worstKol,
+      tabunganSum:c.totalTabungan, giroSum:c.totalGiro, depositoSum:c.totalDeposito,
+      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0)});
   });
   // Badan usaha (PT/CV/UD/dll) first — a business entity is the priority
   // target for RM SME's credit expansion push, ahead of perorangan; within
@@ -1649,6 +1729,40 @@ function buildPinjamanOppList(){
     if(ba !== bb) return bb - ba;
     return (b.openDt||'').localeCompare(a.openDt||'');
   });
+  return entries;
+}
+/* Same two-source merge as buildPinjamanOppList, same normalized entry shape
+   (so selectOpp can share one render path for both) — but for Cash
+   Collateral: has a Deposito, no active loan. Source 1 is prospects with
+   depositoSum>0 (see the CI324 tier b/c matching in buildCustomers) — this
+   used to be structurally impossible: CI324 has no CIF, so a deposito-only
+   customer who was never in LW321 could never be identified at all. Source
+   2 is existing loan customers whose loan is fully paid off (unchanged
+   logic, already tagged 'cashCollateral' in c.opportunities, gated to Kol
+   1-2 there). */
+function buildCashCollateralOppList(){
+  const entries = [];
+  getScopedFundingOnlyProspects().forEach(p => {
+    if(!(p.depositoSum > 0)) return;
+    const produk = [];
+    if(p.tabungan) produk.push('Tabungan');
+    if(p.giro) produk.push('Giro');
+    if(p.deposito) produk.push('Deposito');
+    if(p.edc) produk.push('EDC');
+    if(p.qris) produk.push('QRIS');
+    entries.push({cif:p.cif, nama:p.nama, produk, saldo:p.tabunganSum+p.giroSum+p.depositoSum+p.edcSum+p.qrisSum,
+      openDt:p.latestOpenDt, ukerCode:p.ukerCode||'-', everHadLoan:false,
+      tabunganSum:p.tabunganSum, giroSum:p.giroSum, depositoSum:p.depositoSum, edcSum:p.edcSum, qrisSum:p.qrisSum,
+      noCifMatch: String(p.cif).startsWith('DEP:')});
+  });
+  getOppScopedCustomers().forEach(c => {
+    if(!c.opportunities.includes('cashCollateral')) return;
+    entries.push({cif:c.cif, nama:c.nama, produk:['Deposito'], saldo:c.totalFunding,
+      openDt:'', ukerCode:c.uker, everHadLoan:true, worstKol:c.worstKol,
+      tabunganSum:c.totalTabungan, giroSum:c.totalGiro, depositoSum:c.totalDeposito,
+      edcSum:c.edc.reduce((s,t)=>s+(t._volume||0),0), qrisSum:c.qris.reduce((s,t)=>s+(t._volume||0),0)});
+  });
+  entries.sort((a,b) => (b.depositoSum||0) - (a.depositoSum||0));
   return entries;
 }
 /* ===================================================================
@@ -1947,6 +2061,40 @@ window.goToCustomerDetail = goToCustomerDetail;
      Kol 3–5 (Kurang Lancar/       → Monitoring / Eksekusi note only — normal
        Diragukan/Macet)              cross-sell is suppressed; pushing new
                                        products on a problem loan isn't useful. */
+/* Near-miss note for a Kol 1/2 customer with an active loan who doesn't yet
+   qualify for ANY opportunity (Pipeline CASA Optimal / Transaksi Optimal /
+   Merchant all unmet) — instead of just saying "no opportunity detected",
+   find whichever single Pipeline criterion is closest to its threshold
+   (within 2x, i.e. ratio >= 0.5) and surface a concrete "top up CASA" /
+   "tingkatkan frekuensi transaksi" push so the RM has something actionable.
+   Returns null when nothing is close enough to be worth suggesting. */
+function buildPipelineNearMissNote(c){
+  const ev = c.pipelineEval;
+  if(!ev || !ev.monthsCovered) return null;
+  const T = PIPELINE_THRESHOLDS;
+  const candidates = [];
+  if(!ev.casaOptimal){
+    candidates.push({pipeline:'CASA Optimal', metric:'rata-rata CASA (ratas 12 bulan)', current:ev.avgCasa12||0, min:T.casaOptimal.casaMin, unit:'money'});
+    candidates.push({pipeline:'CASA Optimal', metric:'frekuensi transaksi (12 bulan)', current:ev.avgFreq12||0, min:T.casaOptimal.freqMin, unit:'freq'});
+  }
+  if(!ev.transaksiOptimal){
+    candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata transaksi kredit per bulan (6 bulan)', current:ev.avgCreditMonthly||0, min:T.transaksiOptimal.creditMin, unit:'money'});
+    candidates.push({pipeline:'Transaksi Optimal', metric:'rata-rata CASA (ratas 6 bulan)', current:ev.avgCasa||0, min:T.transaksiOptimal.casaMin, unit:'money'});
+  }
+  let best = null;
+  candidates.forEach(cd => {
+    if(cd.min <= 0) return;
+    const ratio = cd.current/cd.min;
+    if(ratio >= 0.5 && ratio < 1 && (!best || ratio > best.ratio)) best = {...cd, ratio};
+  });
+  if(!best) return null;
+  const fmtVal = v => best.unit==='freq' ? `${v.toFixed(1)}x/bulan` : fmtRupiah(Math.round(v));
+  const gap = Math.max(0, best.min - best.current);
+  const actionText = best.unit==='freq'
+    ? 'dorong frekuensi transaksi rekening (migrasi mutasi debit/kredit rutin — payroll, pembayaran vendor, dsb — ke rekening BRI)'
+    : 'dorong top up CASA (Tabungan/Giro), misalnya mengarahkan penempatan dana idle atau hasil penjualan ke rekening BRI';
+  return `<div class="rec-note"><strong>Pipeline ${escapeHtml(best.pipeline)} — hampir tercapai (${Math.round(best.ratio*100)}%):</strong> ${escapeHtml(best.metric)} nasabah ini saat ini ${fmtVal(best.current)}, masih kurang ${fmtVal(gap)} lagi dari ambang batas ${fmtVal(best.min)}. Rekomendasi: ${actionText} agar nasabah ini bisa masuk sebagai kandidat Peluang Pinjaman baru.</div>`;
+}
 function renderOpportunityRecommendations(c){
   const kol = c.worstKol;
   const notes = [];
@@ -1968,7 +2116,8 @@ function renderOpportunityRecommendations(c){
     });
   }
   if(!notes.length){
-    notes.push('<div class="rec-note">Tidak ada peluang atau tindakan khusus yang terdeteksi otomatis untuk nasabah ini pada periode data saat ini.</div>');
+    const nearMiss = kol < 3 ? buildPipelineNearMissNote(c) : null;
+    notes.push(nearMiss || '<div class="rec-note">Tidak ada peluang atau tindakan khusus yang terdeteksi otomatis untuk nasabah ini pada periode data saat ini.</div>');
   }
   return notes.join('');
 }
@@ -2044,7 +2193,18 @@ function renderRekeningKoranSection(c){
         </div>
       </div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Bulan</th><th class="num">Freq Transaksi</th><th class="num">Total Kredit</th><th class="num">Total Debit</th><th class="num">Ratas Saldo (CASA)</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <div class="rec-note" style="margin-top:10px">Rata-rata Penyaluran per Bulan (Transaksi Kredit): <strong>${fmtRupiah(Math.round(ev.overallAvgCredit||0))}</strong> · Rata-rata Pembelian per Bulan (Transaksi Debit): <strong>${fmtRupiah(Math.round(ev.overallAvgDebit||0))}</strong> (berdasarkan ${n} bulan${isReal?'':' data simulasi'})</div>
+      <div class="stats-grid" style="margin-top:12px;margin-bottom:0">
+        <div class="stat-card success">
+          <div class="stat-label">Rata-rata Penyaluran / Bulan (Transaksi Kredit)</div>
+          <div class="stat-value">${fmtRupiah(Math.round(ev.overallAvgCredit||0))}</div>
+          <div class="stat-sub">Berdasarkan ${n} bulan${isReal?'':' data simulasi'}</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-label">Rata-rata Pembelian / Bulan (Transaksi Debit)</div>
+          <div class="stat-value">${fmtRupiah(Math.round(ev.overallAvgDebit||0))}</div>
+          <div class="stat-sub">Berdasarkan ${n} bulan${isReal?'':' data simulasi'}</div>
+        </div>
+      </div>
       ${partnerBlock}
       <div class="pipeline-badges">${casaBadge}${merchantBadge}${transBadge}</div>
     </div>
@@ -2184,11 +2344,37 @@ function buildOppInsightNote(c, key){
     const missing = [c.edc.length===0 && 'EDC', c.qris.length===0 && 'QRIS'].filter(Boolean).join(' dan ');
     return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${(ev.avgFreq||0).toFixed(1)}x/bulan — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
   }
-  if(key === 'cashCollateral'){
-    const kolNote = c.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} punya Deposito senilai ${fmtRupiah(c.totalDeposito)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — dana ini bisa langsung dijadikan agunan untuk Kredit Cash Collateral tanpa perlu penilaian jaminan tambahan${kolNote}</div>`;
-  }
+  // Note: 'cashCollateral' used to be handled here too, but it now flows
+  // through buildCashCollateralOppList/buildProspectOppNote instead (see
+  // selectOpp below) so it can merge in genuinely loan-less Deposito-only
+  // prospects that never had a CIF match in customers — this generic
+  // per-customer path can't see those.
   return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} terdeteksi punya peluang pengembangan produk lain di BRI.</div>`;
+}
+/* Shared recommendation note for the merged prospect+customer entry shape
+   used by both 'pinjaman' and 'cashCollateral' (see buildPinjamanOppList/
+   buildCashCollateralOppList) — p may be either a lightweight funding-only
+   prospect (everHadLoan:false) or a full Customer object flattened into the
+   same entry shape (everHadLoan:true, worstKol set). */
+function buildProspectOppNote(p, key){
+  const namaStr = escapeHtml(p.nama || 'Nasabah ini');
+  const produkStr = p.produk.map(x=>escapeHtml(x)).join(', ');
+  const cifNote = p.noCifMatch
+    ? ' Catatan: nasabah ini hanya ditemukan di data Deposito (tidak ada No CIF/cabang yang cocok di sumber data lain) — cocokkan manual berdasarkan nama sebelum follow-up.'
+    : '';
+  if(key === 'cashCollateral'){
+    const kolNote = p.worstKol === 2 ? ' (perhatikan Kol 2 — tetap dampingi monitoring pembayaran saat pendekatan ini dilakukan).' : '.';
+    return `<div class="rec-note" style="margin-top:8px">${namaStr} punya Deposito senilai ${fmtRupiah(p.depositoSum||0)} di BRI dan sedang tidak memiliki fasilitas kredit aktif — dana ini bisa langsung dijadikan agunan untuk Kredit Cash Collateral tanpa perlu penilaian jaminan tambahan${kolNote}${cifNote}</div>`;
+  }
+  const statusStr = p.everHadLoan
+    ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)'
+    : 'belum pernah tercatat punya fasilitas kredit';
+  const ev = p.pipelineEval || {};
+  const which = [
+    ev.casaOptimal && `Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${(ev.avgFreq12||0).toFixed(1)}x/bulan)`,
+    ev.transaksiOptimal && `Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`,
+  ].filter(Boolean);
+  return `<div class="rec-note" style="margin-top:8px">${namaStr} sudah punya relationship <strong>${produkStr}</strong> di BRI, ${statusStr}, dan tervalidasi rekening koran memenuhi ${which.join(' dan ') || 'kriteria Pipeline SME'} — kandidat pipeline kredit untuk RM SME.${cifNote}</div>`;
 }
 /* "Pinjaman" (RM SME angle) has a different data shape (funding-only
    prospects: cif/nama/jenis/balance/openDt/ukerCode) than every other
@@ -2204,15 +2390,17 @@ function selectOpp(k, resetPinjamanPage=true){
   const def = OPP_DEFS[k];
   const q = ($('oppSearch').value || '').toLowerCase().trim();
   let list = State.oppCategories[k];
-  // The Tabungan/Giro filter only makes sense for the Pinjaman category (the
-  // other categories aren't split by product type this way) — only shown
-  // when that category is active.
-  $('oppPinjamanFilterWrap').style.display = k === 'pinjaman' ? 'flex' : 'none';
-  if(k === 'pinjaman'){
+  // The Tabungan/Giro/Deposito product filter applies to both prospect-
+  // shaped categories (Pinjaman and Cash Collateral share the same merged
+  // customer+prospect entry shape, see buildPinjamanOppList/
+  // buildCashCollateralOppList) — the other categories aren't split by
+  // product type this way, so it's only shown for these two.
+  $('oppPinjamanFilterWrap').style.display = (k === 'pinjaman' || k === 'cashCollateral') ? 'flex' : 'none';
+  if(k === 'pinjaman' || k === 'cashCollateral'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
     if(jenisFilter) list = list.filter(p => p.produk.includes(jenisFilter));
-    // list may still be the same array reference as State.oppCategories.pinjaman
+    // list may still be the same array reference as State.oppCategories[k]
     // if no filter/search narrowed it down — always slice() before sorting so
     // we never mutate the shared source array (which stays newest-first by
     // default for every other consumer, e.g. the Excel export).
@@ -2221,18 +2409,23 @@ function selectOpp(k, resetPinjamanPage=true){
     const pageSize = State.pinjamanOppPageSize || OPP_DISPLAY_CAP;
     const visible = list.slice(0, pageSize);
     const entries = visible.map(p => {
+      const rows = [['Tabungan',p.tabunganSum],['Giro',p.giroSum],['Deposito',p.depositoSum],['EDC (Volume)',p.edcSum],['QRIS (Volume)',p.qrisSum]]
+        .filter(([,v]) => v>0)
+        .map(([label,v]) => `<div class="detail-field"><span class="lbl">${label}</span><span class="val">${fmtRupiah(v)}</span></div>`).join('');
+      const kolBadge = p.worstKol ? `<span class="badge-pill k-${p.worstKol}">Kol ${p.worstKol}</span>` : '';
       return `
       <div class="opp-entry">
         <div class="opp-entry-head">
           <span><a class="cust-link" href="javascript:void(0)" onclick="goToCustomerDetail('${escapeHtml(p.cif)}')">${escapeHtml(p.nama || '(tanpa nama)')}</a></span>
-          <span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span>
+          <span style="display:flex;gap:6px;align-items:center">${kolBadge}<span class="badge-pill prod-yes" style="font-weight:800">${p.produk.map(x=>escapeHtml(x)).join(', ')}</span></span>
         </div>
         <div class="detail-grid">
           <div class="detail-field"><span class="lbl">CIF</span><span class="val">${escapeHtml(p.cif)}</span></div>
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
-          <div class="detail-field"><span class="lbl">Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
+          <div class="detail-field"><span class="lbl">Total Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
+          ${rows}
         </div>
-        <div class="rec-note" style="margin-top:8px">${escapeHtml(p.nama || 'Nasabah ini')} sudah punya relationship <strong>${p.produk.map(x=>escapeHtml(x)).join(', ')}</strong> di BRI, ${p.everHadLoan ? 'Baki Debet tercatat Rp 0 (indikasi kredit lunas — cek status fasilitas sebelum follow-up, karena Rp 0 sesaat juga bisa terjadi menjelang pelunasan)' : 'tapi belum pernah tercatat punya fasilitas kredit'}, dan tervalidasi rekening koran memenuhi ${[p.pipelineEval?.casaOptimal && 'Pipeline CASA Optimal', p.pipelineEval?.transaksiOptimal && 'Pipeline Transaksi Optimal'].filter(Boolean).join(' & ') || 'kriteria Pipeline SME'} — kandidat pipeline kredit untuk RM SME.</div>
+        ${buildProspectOppNote(p, k)}
       </div>
     `;
     }).join('');
@@ -2240,7 +2433,7 @@ function selectOpp(k, resetPinjamanPage=true){
       ? `<div style="text-align:center;padding:14px"><button class="btn btn-outline btn-sm" onclick="growPinjamanOppPage()">Muat ${OPP_DISPLAY_CAP} Lagi</button></div>` : '';
     $('oppDetail').innerHTML = `
       <div class="rec-note"><strong>${def.label}</strong> — ${def.rec}</div>
-      <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} nasabah (diurutkan dari tanggal buka rekening terbaru).</div>
+      <div class="upload-hint" style="margin-bottom:10px">Menampilkan ${fmtNum(visible.length)} dari total ${fmtNum(list.length)} nasabah.</div>
       <div class="opp-entry-list">${entries || '<div class="opp-detail-empty">Tidak ada nasabah yang cocok.</div>'}</div>
       ${loadMore}
     `;
@@ -2275,8 +2468,8 @@ function growPinjamanOppPage(){
 }
 window.growPinjamanOppPage = growPinjamanOppPage;
 $('oppSearch').addEventListener('input', () => { if(State.activeOpp) selectOpp(State.activeOpp, true); });
-$('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', true); });
-$('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman') selectOpp('pinjaman', false); });
+$('oppPinjamanJenisFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, true); });
+$('oppPinjamanSortFilter').addEventListener('change', () => { if(State.activeOpp==='pinjaman' || State.activeOpp==='cashCollateral') selectOpp(State.activeOpp, false); });
 /* ===================================================================
    PRIORITAS KUNJUNGAN — Deposit to Loan (two-tier, no matrix)
    ---------------------------------------------------------------
@@ -2610,9 +2803,21 @@ const DUMMY_NAMES = [
 ];
 const DUMMY_JENIS = ['Modal Kerja','Investasi','Kredit Multiguna','KUR Mikro','KUR Kecil','Briguna Karya'];
 const DUMMY_SEGMEN = ['Mikro','Kecil','Menengah','Konsumer'];
-const DUMMY_RM = [
+// RM Pengelola Kredit (RM SME, manages loans) paired 1:1 by index with
+// DUMMY_RM_FT (RM Pengelola FT, manages funding/transaction products) below —
+// a DIFFERENT person for each role, mirroring the real SK Pairing model
+// (RM_PAIRING/computeInferredRmPairing). An earlier version reused the SAME
+// name for both roles, which made the RM SME ↔ RM FT reciprocal-visibility
+// widening (see getOppScopedCustomers/getScopedFundingOnlyProspects)
+// untestable in this demo — there was no actual "different RM, paired
+// partner" relationship for it to widen across.
+const DUMMY_RM_SME = [
   '00156006 - AFUN META WIJAYA','00203981 - DIAN PRATIWI','00318842 - BAGUS SANTOSO',
   '00427710 - MUTIARA SHAFA NURAINI','00512233 - RIZAL FEBRIAN','00609981 - CITRA AYU LESTARI',
+];
+const DUMMY_RM_FT = [
+  '00701122 - EKA WULANDARI','00788234 - FAJAR NUGROHO','00845567 - GITA PRAMESTI',
+  '00912678 - HERU KUSWANTO','00967890 - INDRA SAPUTRA','01023456 - JULIA ANGGRAINI',
 ];
 const DUMMY_KOLS = [1,1,1,2,1,1,1,3,1,1,2,1,1,1,4,1,2,1,1,1,5,1,1,2,1,1,3,1,1,1,2,1];
 function makeDummyLoan(i, kol, plafon, baki, rm){
@@ -2663,19 +2868,20 @@ function generateDummyCustomers(){
     // loan by construction and that card can never populate, which is
     // exactly what looked like a bug rather than "0 in this small sample".
     const baki = (i===21) ? 0 : bakiScale;
-    const rm = DUMMY_RM[i % DUMMY_RM.length];
-    const loan = makeDummyLoan(i, kol, plafon, baki, rm);
+    const rmSme = DUMMY_RM_SME[i % DUMMY_RM_SME.length];
+    const rmFt = DUMMY_RM_FT[i % DUMMY_RM_FT.length];
+    const loan = makeDummyLoan(i, kol, plafon, baki, rmSme);
     const hasTabungan = i % 5 !== 0;
     const hasGiro = i % 3 === 0;
     const hasMerchant = i % 4 === 0;
     const hasDeposito = i % 7 === 0;
-    const tabungan = hasTabungan ? [makeDummyTabungan(i, Math.round(bakiScale*(0.05+(i%4)*0.03)), rm)] : [];
-    const giro = hasGiro ? [makeDummyGiro(i, Math.round(bakiScale*(0.1+(i%3)*0.05)), rm)] : [];
-    const deposito = hasDeposito ? [makeDummyDeposito(i, Math.round(bakiScale*0.2), rm, i%2===0?'name-exact':'name-fuzzy')] : [];
+    const tabungan = hasTabungan ? [makeDummyTabungan(i, Math.round(bakiScale*(0.05+(i%4)*0.03)), rmFt)] : [];
+    const giro = hasGiro ? [makeDummyGiro(i, Math.round(bakiScale*(0.1+(i%3)*0.05)), rmFt)] : [];
+    const deposito = hasDeposito ? [makeDummyDeposito(i, Math.round(bakiScale*0.2), rmFt, i%2===0?'name-exact':'name-fuzzy')] : [];
     const edc = [], qris = [];
     if(hasMerchant){
-      if(i%8===0) edc.push(makeDummyEdc(i, Math.round(plafon*0.05), 40+i, '00'+(400000+i), 'STAFF EDC '+(i+1)));
-      else qris.push(makeDummyQris(i, Math.round(plafon*0.03), 20+i, ''+(370000+i), 'STAFF QRIS '+(i+1)));
+      if(i%8===0) edc.push(makeDummyEdc(i, Math.round(plafon*0.05), 40+i, rmFt, ''));
+      else qris.push(makeDummyQris(i, Math.round(plafon*0.03), 20+i, rmFt, ''));
     }
     const c = {cif, nama, kanwil:region.kanwil, kanca:region.kanca, uker, loans:[loan], tabungan, giro, deposito, edc, qris};
     c.totalPlafon = plafon;
@@ -2690,7 +2896,7 @@ function generateDummyCustomers(){
     c.totalMerchantVolume = edc.reduce((s,t)=>s+t._volume,0) + qris.reduce((s,t)=>s+t._volume,0);
     c.totalMerchantTrx = edc.reduce((s,t)=>s+t._trx,0) + qris.reduce((s,t)=>s+t._trx,0);
     c.fundingCoverage = c.totalBakiDebet>0 ? (c.totalFunding/c.totalBakiDebet) : null;
-    c.rmPengelola = cleanPn(rm);
+    c.rmPengelola = cleanPn(rmSme);
     c.rmFundingList = [...new Set([
       ...tabungan.map(t => cleanPn(t.pnPengelola)),
       ...giro.map(t => cleanPn(t.pnPengelola)),
@@ -2747,17 +2953,29 @@ function generateDummyFundingOnlyProspects(){
   };
   const region = REGIONS[0];
   const prospects = [
-    {cif:'P900001', nama:'PT SEJAHTERA NIAGA MAKMUR', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00156006 - AFUN META WIJAYA'], tabungan:1, tabunganSum:180000000, giro:0, giroSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20240115',
+    // rmFundingList uses DUMMY_RM_FT names (not DUMMY_RM_SME) — EKA WULANDARI
+    // and FAJAR NUGROHO are AFUN META WIJAYA's and DIAN PRATIWI's paired RM FT
+    // partners respectively, so filtering Peluang Pengembangan by either RM
+    // SME picks these up via the RM SME ↔ RM FT widening (getScopedFundingOnlyProspects).
+    {cif:'P900001', nama:'PT SEJAHTERA NIAGA MAKMUR', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00701122 - EKA WULANDARI'], tabungan:1, tabunganSum:180000000, giro:0, giroSum:0, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20240115',
       rekeningKoran: series(35, 60000000, 55000000, 120000000)}, // clears CASA Optimal (12bln): CASA ≥100jt, freq ≥30x
-    {cif:'P900002', nama:'HENDRA WIJAYA KUSUMA', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00203981 - DIAN PRATIWI'], tabungan:1, tabunganSum:95000000, giro:1, giroSum:40000000, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20230608',
+    {cif:'P900002', nama:'HENDRA WIJAYA KUSUMA', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00788234 - FAJAR NUGROHO'], tabungan:1, tabunganSum:95000000, giro:1, giroSum:40000000, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20230608',
       rekeningKoran: series(12, 850000000, 700000000, 55000000)}, // clears Transaksi Optimal (6bln): kredit ≥800jt/bln, CASA ≥50jt
+    // A third showcase for the fixed Deposito logic (see prospectMap/CI324
+    // handling in buildCustomers): a customer who ONLY ever shows up in the
+    // Deposito file, matches no other product and no LW321 loan at all — the
+    // case that was previously invisible everywhere. No CIF/branch info on
+    // file for this one (CI324 genuinely carries neither), same constraint
+    // real uploads have — hence the synthetic "DEP:" cif and blank branch.
+    {cif:'DEP:CANTIKA DEWI LESTARI', nama:'CANTIKA DEWI LESTARI', kanwil:'', kanca:'', uker:'', ukerCode:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:1, depositoSum:85000000, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''},
   ];
-  prospects.forEach(p => { p.pipelineEval = evaluateRekeningKoranPipelines(p); });
+  prospects.forEach(p => { p.pipelineEval = evaluateRekeningKoranPipelines({rekeningKoran:p.rekeningKoran||[]}); });
   return prospects;
 }
 function loadDummyDashboard(){
   State.customers = new Map(generateDummyCustomers().map(c => [c.cif, c]));
   State.fundingOnlyProspects = generateDummyFundingOnlyProspects();
+  State.inferredRmPairing = computeInferredRmPairing(State.customers);
   State.customersVersion = (State.customersVersion||0) + 1;
   populateGlobalFilterOptions();
   applyGlobalFilter();
