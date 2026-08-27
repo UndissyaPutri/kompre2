@@ -69,6 +69,11 @@ body{
 .btn-outline{background:transparent;color:var(--text);border:1.5px solid var(--border)}
 .btn-outline:hover:not(:disabled){background:var(--surface-alt);border-color:var(--brand)}
 .btn-sm{padding:6px 12px;font-size:12px}
+/* Solid dark blue — used where the action should visually invite a click
+   (e.g. "Lihat Rekening Koran" on an opp-entry card), instead of the
+   low-emphasis outline style used for routine/secondary actions. */
+.btn-brand{background:var(--brand-dark);color:#fff}
+.btn-brand:hover:not(:disabled){background:var(--brand-darker)}
 /* ===================== LAYOUT ===================== */
 .container{max-width:1500px;margin:0 auto;padding:24px 28px}
 /* ===================== UPLOAD ===================== */
@@ -290,6 +295,10 @@ table.data-table .ctr{text-align:center}
 .detail-field{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--border)}
 .detail-field .lbl{color:var(--text-muted);font-size:12px;flex:0 0 45%}
 .detail-field .val{color:var(--text);font-size:12.5px;font-weight:500;text-align:right;word-break:break-word}
+/* RM Pengelola FT can list more than one name (comma-joined) — give it two
+   grid columns' width instead of one, so a longer list wraps within a wider
+   box instead of bulging a single narrow column. */
+.detail-field-wide{grid-column:span 2}
 .detail-section-title{
   font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
   color:#fff;background:var(--brand-darker);margin:14px 0 8px;
@@ -487,12 +496,12 @@ table.data-table td.empty{text-align:center}
       </div>
       <div class="gf-pill">
         <label>RM Pengelola Kredit</label>
-        <input class="gf-combo-input" id="gfRm" list="gfRmList" placeholder="Semua RM — ketik untuk cari" autocomplete="off">
+        <input class="gf-combo-input" id="gfRm" list="gfRmList" placeholder="Semua RM" autocomplete="off">
         <datalist id="gfRmList"></datalist>
       </div>
       <div class="gf-pill">
         <label>RM Pengelola FT</label>
-        <input class="gf-combo-input" id="gfRmFt" list="gfRmFtList" placeholder="Semua RM FT — ketik untuk cari" autocomplete="off">
+        <input class="gf-combo-input" id="gfRmFt" list="gfRmFtList" placeholder="Semua RM FT" autocomplete="off">
         <datalist id="gfRmFtList"></datalist>
       </div>
       <button class="btn btn-outline btn-sm" id="btnClearGlobalFilter">Reset Filter</button>
@@ -630,13 +639,12 @@ table.data-table td.empty{text-align:center}
               <option value="tanggal">Urutkan: Tanggal Terbaru</option>
               <option value="saldo">Urutkan: Jumlah Saldo Terbesar</option>
             </select>
-            <div id="oppPinjamanPipelineFilterWrap" style="display:none">
-              <input class="input gf-combo-input" id="oppPinjamanPipelineFilter" list="oppPinjamanPipelineList" placeholder="Semua Pipeline — ketik untuk cari" autocomplete="off" style="max-width:260px">
-              <datalist id="oppPinjamanPipelineList">
-                <option value="Pipeline CASA Optimal">
-                <option value="Pipeline Transaksi Optimal">
-              </datalist>
-            </div>
+            <select class="select" id="oppPinjamanPipelineFilter" style="max-width:220px;display:none">
+              <option value="">Semua Pipeline</option>
+              <option value="casaOptimal">Pipeline CASA Optimal</option>
+              <option value="transaksiOptimal">Pipeline Transaksi Optimal</option>
+              <option value="both">Keduanya (CASA + Transaksi Optimal)</option>
+            </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
         </div>
@@ -651,7 +659,7 @@ table.data-table td.empty{text-align:center}
           </div>
         </div>
         <div class="panel-body">
-          <p id="kpiDplCard" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px"></p>
+          <div id="kpiDplCard" style="max-width:340px;margin-bottom:16px"></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px">
             <div>
               <div class="detail-section-title">Pinjaman</div>
@@ -1966,7 +1974,13 @@ function renderKpiDplCard(custs){
   const totalBaki = custs.reduce((s,c)=>s+c.totalBakiDebet,0);
   const totalFunding = custs.reduce((s,c)=>s+c.totalFunding,0); // Tabungan + Giro + Deposito
   const actualPct = totalBaki > 0 ? (totalFunding / totalBaki * 100) : 0;
-  $('kpiDplCard').textContent = `Rasio DPK Debitur Kelolaan to Loan = ${fmtDec(actualPct)}%`;
+  $('kpiDplCard').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Rasio DPK Debitur Kelolaan to Loan</div>
+      <div class="stat-value">${fmtDec(actualPct)}%</div>
+      <div class="stat-sub">Total Funding ${fmtRupiah(totalFunding)} / Total Baki Debet ${fmtRupiah(totalBaki)}</div>
+    </div>
+  `;
 }
 function renderStats(){
   const custs = getScopedCustomers();
@@ -2243,7 +2257,7 @@ function renderRekeningKoranSection(c){
   }
   let partnerBlock;
   if(partners){
-    partnerBlock = partnerTable('Top 5 Buyer (Transaksi Kredit Terbesar)', partners.topBuyers) + partnerTable('Top 5 Supplier (Transaksi Debit Terbesar)', partners.topSuppliers);
+    partnerBlock = partnerTable('Top 5 Pengirim Dana Terbesar (indikasi Buyer)', partners.topBuyers) + partnerTable('Top 5 Penerima Dana Terbesar (indikasi Supplier)', partners.topSuppliers);
   } else if(isReal){
     partnerBlock = '<div class="upload-hint" style="margin-top:8px">Top 5 buyer/supplier belum bisa ditampilkan untuk nasabah ini — mayoritas transaksi pada mutasinya berupa setoran tunai/kode settlement tanpa nama pihak yang jelas, bukan transfer bernama, sehingga tidak cukup andal untuk dijadikan daftar top 5.</div>';
   } else {
@@ -2435,13 +2449,13 @@ function buildOppInsightNote(c, key){
   const ev = c.pipelineEval || {};
   if(key === 'pinjaman'){
     const which = [];
-    if(ev.casaOptimal) which.push(`<strong>Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)</strong>`);
-    if(ev.transaksiOptimal) which.push(`<strong>Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})</strong>`);
+    if(ev.casaOptimal) which.push(`<strong>Pipeline CASA Optimal</strong> (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)`);
+    if(ev.transaksiOptimal) which.push(`<strong>Pipeline Transaksi Optimal</strong> (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`);
     return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tidak punya fasilitas kredit aktif dan tervalidasi rekening koran memenuhi ${which.join(' dan ')} — kandidat pipeline kredit baru per Ketentuan Ekspansi Kredit Segmen SME 2026.</div>`;
   }
   if(key === 'crossSellMerchant'){
     const missing = [c.edc.length===0 && 'EDC', c.qris.length===0 && 'QRIS'].filter(Boolean).join(' dan ');
-    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi <strong>Pipeline Nasabah Merchant — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan</strong> — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
+    return `<div class="rec-note" style="margin-top:8px">${escapeHtml(c.nama)} tervalidasi rekening koran memenuhi <strong>Pipeline Nasabah Merchant</strong> — ratas CASA ${fmtRupiah(Math.round(ev.avgCasa||0))}/bulan, frekuensi ${fmtDec(ev.avgFreq||0)}x/bulan — tapi belum punya ${missing}. Pola transaksinya sudah setara merchant aktif, jadi ini akuisisi ${missing} dengan sinyal kuat, bukan sekadar belum pernah ditawari.</div>`;
   }
   // Note: 'cashCollateral' used to be handled here too, but it now flows
   // through buildCashCollateralOppList/buildProspectOppNote instead (see
@@ -2470,8 +2484,8 @@ function buildProspectOppNote(p, key){
     : 'belum pernah tercatat punya fasilitas kredit';
   const ev = p.pipelineEval || {};
   const which = [
-    ev.casaOptimal && `<strong>Pipeline CASA Optimal (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)</strong>`,
-    ev.transaksiOptimal && `<strong>Pipeline Transaksi Optimal (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})</strong>`,
+    ev.casaOptimal && `<strong>Pipeline CASA Optimal</strong> (ratas CASA ${fmtRupiah(Math.round(ev.avgCasa12||0))}, frekuensi ${fmtDec(ev.avgFreq12||0)}x/bulan)`,
+    ev.transaksiOptimal && `<strong>Pipeline Transaksi Optimal</strong> (kredit ${fmtRupiah(Math.round(ev.avgCreditMonthly||0))}/bulan, CASA ${fmtRupiah(Math.round(ev.avgCasa||0))})`,
   ].filter(Boolean);
   return `<div class="rec-note" style="margin-top:8px">${namaStr} sudah punya relationship <strong>${produkStr}</strong> di BRI, ${statusStr}, dan tervalidasi rekening koran memenuhi ${which.join(' dan ') || 'kriteria Pipeline SME'} — kandidat pipeline kredit untuk RM SME.${cifNote}</div>`;
 }
@@ -2499,15 +2513,18 @@ function selectOpp(k, resetPinjamanPage=true){
   // for Pinjaman — that's the only category whose qualification is "one OR
   // the other" of those two pipelines (Cash Collateral qualifies on a
   // Deposito+no-loan basis, unrelated to either pipeline).
-  $('oppPinjamanPipelineFilterWrap').style.display = k === 'pinjaman' ? '' : 'none';
+  $('oppPinjamanPipelineFilter').style.display = k === 'pinjaman' ? '' : 'none';
   if(k === 'pinjaman' || k === 'cashCollateral'){
     if(q) list = list.filter(p => `${p.nama} ${p.cif}`.toLowerCase().includes(q));
     const jenisFilter = $('oppPinjamanJenisFilter') ? $('oppPinjamanJenisFilter').value : '';
     if(jenisFilter) list = list.filter(p => p.produk.includes(jenisFilter));
     if(k === 'pinjaman'){
-      const pipelineFilterRaw = ($('oppPinjamanPipelineFilter').value || '').trim().toLowerCase();
-      if(pipelineFilterRaw.includes('casa')) list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal);
-      else if(pipelineFilterRaw.includes('transaksi')) list = list.filter(p => p.pipelineEval && p.pipelineEval.transaksiOptimal);
+      // Default ("") shows everyone who qualifies via either pipeline
+      // (unchanged) — the dropdown only narrows down from there.
+      const pipelineFilter = $('oppPinjamanPipelineFilter').value;
+      if(pipelineFilter === 'casaOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal);
+      else if(pipelineFilter === 'transaksiOptimal') list = list.filter(p => p.pipelineEval && p.pipelineEval.transaksiOptimal);
+      else if(pipelineFilter === 'both') list = list.filter(p => p.pipelineEval && p.pipelineEval.casaOptimal && p.pipelineEval.transaksiOptimal);
     }
     // list may still be the same array reference as State.oppCategories[k]
     // if no filter/search narrowed it down — always slice() before sorting so
@@ -2532,14 +2549,16 @@ function selectOpp(k, resetPinjamanPage=true){
           <div class="detail-field"><span class="lbl">CIF</span><span class="val">${escapeHtml(p.cif)}</span></div>
           <div class="detail-field"><span class="lbl">Unit Kerja</span><span class="val">${escapeHtml(p.ukerCode || '-')}</span></div>
           <div class="detail-field"><span class="lbl">Total Saldo</span><span class="val">${fmtRupiah(p.saldo)}</span></div>
-          <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(p.rmSme || '-')}</span></div>
           ${rows}
-          <!-- RM FT last, not in the middle — it can list more than one name
-               (comma-joined), and a long wrapped value in the middle of the
-               grid pushes/misaligns the fields after it. -->
-          <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
+          <!-- RM fields last (Kredit 2nd-to-last, FT last) rather than up
+               near the top — RM FT in particular can list more than one
+               name (comma-joined), and a long wrapped value in the middle
+               of the grid pushes/misaligns the fields after it. FT also
+               gets 2 grid columns' width so that list has room to breathe. -->
+          <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(p.rmSme || '-')}</span></div>
+          <div class="detail-field detail-field-wide"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((p.rmFt && p.rmFt.length) ? p.rmFt.join(', ') : '-')}</span></div>
         </div>
-        <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(p.cif)}')">Lihat Rekening Koran</button>
+        <button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(p.cif)}')">Lihat Rekening Koran</button>
         ${buildProspectOppNote(p, k)}
       </div>
     `;
@@ -2568,9 +2587,9 @@ function selectOpp(k, resetPinjamanPage=true){
         <div class="detail-field"><span class="lbl">Total Funding</span><span class="val">${fmtRupiah(c.totalFunding)}</span></div>
         <div class="detail-field"><span class="lbl">RM Pengelola Kredit</span><span class="val">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</span></div>
         <!-- RM FT last — see note above on the prospect-shaped template. -->
-        <div class="detail-field"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((c.rmFundingList && c.rmFundingList.length) ? c.rmFundingList.join(', ') : '-')}</span></div>
+        <div class="detail-field detail-field-wide"><span class="lbl">RM Pengelola FT</span><span class="val">${escapeHtml((c.rmFundingList && c.rmFundingList.length) ? c.rmFundingList.join(', ') : '-')}</span></div>
       </div>
-      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(c.cif)}')">Lihat Rekening Koran</button>
+      <button class="btn btn-brand btn-sm" style="margin-top:8px" onclick="showRekeningKoranModal('${escapeHtml(c.cif)}')">Lihat Rekening Koran</button>
       ${buildOppInsightNote(c, k)}
     </div>
   `).join('');
