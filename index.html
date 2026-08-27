@@ -292,6 +292,7 @@ table.data-table .ctr{text-align:center}
   display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
   gap:8px 24px;
 }
+.detail-grid-single{grid-template-columns:1fr}
 .detail-field{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--border)}
 .detail-field .lbl{color:var(--text-muted);font-size:12px;flex:0 0 45%}
 .detail-field .val{color:var(--text);font-size:12.5px;font-weight:500;text-align:right;word-break:break-word}
@@ -387,6 +388,7 @@ table.data-table .ctr{text-align:center}
 .rk-modal-sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
 /* ===================== CHARTS ===================== */
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}
+.charts-grid-2x2{grid-template-columns:repeat(2, minmax(360px, 1fr))}
 .chart-card{background:var(--surface);border-radius:var(--radius-sm);padding:18px;box-shadow:none;border:1px solid var(--border)}
 .chart-card h3{font-size:14px;margin-bottom:14px;color:var(--brand-darker);font-weight:700}
 .chart-canvas-wrap{position:relative;height:280px}
@@ -540,26 +542,10 @@ table.data-table td.empty{text-align:center}
           <div id="statsGridMerchant"></div>
         </div>
       </div>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>Distribusi Kolektibilitas Terburuk per Nasabah</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartKol"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <h3>Kepemilikan Produk Nasabah (Keseluruhan Data)</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartProduk"></canvas></div>
-        </div>
+      <div class="charts-grid charts-grid-2x2">
         <div class="chart-card">
           <h3>Top 10 Nasabah, Baki Debet Pinjaman</h3>
           <div class="chart-canvas-wrap"><canvas id="chartTopDebet"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <h3>Top 10 Nasabah, Total Funding (Tabungan+Giro+Deposito)</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartTopFunding"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <h3>Distribusi DPK to Loan Nasabah</h3>
-          <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
         <div class="chart-card">
           <h3>Top 10 Nasabah Prioritas untuk Review</h3>
@@ -570,6 +556,25 @@ table.data-table td.empty{text-align:center}
                 <th class="num">DPK to Loan</th>
               </tr></thead>
               <tbody id="priorityReviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Distribusi DPK to Loan Nasabah</h3>
+          <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Tabel RM Pairing (RM SME x RM FT)</h3>
+          <div class="table-wrap" style="height:280px;overflow-y:auto">
+            <table class="data-table" id="rmPairingTable">
+              <thead><tr>
+                <th class="num">#</th>
+                <th>RM SME</th>
+                <th>RM FT</th>
+                <th class="num">Jml Nasabah</th>
+                <th class="num">Total OS</th>
+              </tr></thead>
+              <tbody id="rmPairingBody"></tbody>
             </table>
           </div>
         </div>
@@ -612,9 +617,8 @@ table.data-table td.empty{text-align:center}
                   <th class="sortable num" data-sort="totalPlafon">Plafon</th>
                   <th class="sortable num" data-sort="totalBakiDebet">Baki Debet</th>
                   <th class="sortable num" data-sort="totalFunding">Total Funding</th>
-                  <th class="sortable num" data-sort="fundingCoverage" title="DPK to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</th>
+                  <th class="sortable num" data-sort="fundingCoverage" title="DPK to Loan: seberapa besar funding (Tabungan, Giro, Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</th>
                   <th>Produk Dimiliki</th>
-                  <th class="sortable" data-sort="oppCount" title="Jenis &amp; jumlah peluang pengembangan yang terdeteksi otomatis. Arahkan kursor ke setiap badge untuk detail, atau buka tab Peluang Pengembangan untuk daftar lengkap dan rekomendasinya.">Peluang ℹ️</th>
                 </tr>
               </thead>
               <tbody id="custBody"></tbody>
@@ -654,13 +658,13 @@ table.data-table td.empty{text-align:center}
               <option value="">Semua Pipeline</option>
               <option value="casaOptimal">Pipeline CASA Optimal</option>
               <option value="transaksiOptimal">Pipeline Transaksi Optimal</option>
-              <option value="both">Keduanya (CASA + Transaksi Optimal)</option>
+              <option value="both">Keduanya (CASA dan Transaksi Optimal)</option>
             </select>
             <select class="select" id="oppKolFilter" style="max-width:220px;display:none">
-              <option value="">Semua Kol (3, 4, 5)</option>
-              <option value="3">Kol 3, Kurang Lancar</option>
-              <option value="4">Kol 4, Diragukan</option>
-              <option value="5">Kol 5, Macet</option>
+              <option value="">Semua Kolektabilitas</option>
+              <option value="3">Kol 3</option>
+              <option value="4">Kol 4</option>
+              <option value="5">Kol 5</option>
             </select>
           </div>
           <div class="opp-detail-panel" id="oppDetail"><div class="opp-detail-empty">Pilih kategori peluang di atas untuk menampilkan daftar nasabah.</div></div>
@@ -757,11 +761,12 @@ const SLOTS = [
    desc:'Data merchant EDC, di-lookup berdasarkan CIFNO ke LW321.'},
   {key:'QRIS', title:'Merchant QRIS', required:false, ext:'.csv', match:['QRIS'],
    desc:'Data merchant QRIS, di-lookup berdasarkan CIF ke LW321.'},
-  {key:'PRODUCT_HOLDING', title:'Product Holding', required:false, ext:'.xlsx', match:['PRODUCT HOLDING','PRODUCT_HOLDING','HOLDING'],
-   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah, ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang.'},
+  {key:'PRODUCT_HOLDING', title:'Product Holding', required:false, ext:'.xlsx', match:['PRODUCT HOLDING','PRODUCT_HOLDING','HOLDING'], multiple:true,
+   desc:'Opsional, diupload bulanan. Rincian produk yang sudah dimiliki nasabah, ditampilkan di popup Lihat Rekening Koran dan di profil detail nasabah, tidak memengaruhi deteksi peluang. Bisa upload lebih dari satu file (misalnya sisi SME dan FT terpisah) — datanya digabung berdasarkan CIF.'},
 ];
 const State = {
   files:{},        // key -> {file, name}
+  fileNames:{},     // key -> array of uploaded file names (slots with multiple:true accumulate here)
   raw:{},          // key -> parsed array of row objects
   customers:new Map(), // cif -> customer object (full, unfiltered universe)
   globalFilter:{kanwil:'', kanca:'', uker:'', rm:'', rmFt:''}, // scope selected by top filter bar
@@ -1453,7 +1458,7 @@ function renderSlots(){
       <div class="slot-desc">${s.desc}</div>
       <div class="slot-status" id="slotStatus_${s.key}">Belum diupload (${s.ext})</div>
       <button class="slot-pick" id="slotPick_${s.key}">Pilih atau seret file ke sini</button>
-      <input type="file" class="slot-input" id="slotInput_${s.key}" accept="${s.ext},.xlsx,.csv">
+      <input type="file" class="slot-input" id="slotInput_${s.key}" accept="${s.ext},.xlsx,.csv" ${s.multiple?'multiple':''}>
     </div>
   `).join('');
   SLOTS.forEach(s => {
@@ -1461,12 +1466,19 @@ function renderSlots(){
     const input = $('slotInput_'+s.key);
     const pick = $('slotPick_'+s.key);
     pick.addEventListener('click', () => input.click());
-    input.addEventListener('change', () => { if(input.files[0]) assignFileToSlot(s.key, input.files[0]); });
+    input.addEventListener('change', () => {
+      if(!input.files.length) return;
+      if(s.multiple) [...input.files].forEach(f => assignFileToSlot(s.key, f));
+      else assignFileToSlot(s.key, input.files[0]);
+    });
     card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('dragging'); });
     card.addEventListener('dragleave', () => card.classList.remove('dragging'));
     card.addEventListener('drop', e => {
       e.preventDefault(); card.classList.remove('dragging');
-      if(e.dataTransfer.files[0]) assignFileToSlot(s.key, e.dataTransfer.files[0]);
+      const dropped = [...(e.dataTransfer.files||[])];
+      if(!dropped.length) return;
+      if(s.multiple) dropped.forEach(f => assignFileToSlot(s.key, f));
+      else assignFileToSlot(s.key, dropped[0]);
     });
   });
   // A single global dropzone-like behavior on the whole grid: auto-detect by filename
@@ -1483,11 +1495,47 @@ function detectSlotFromFilename(name){
   }
   return null;
 }
+/* Merges Product Holding rows from multiple uploads (e.g. SME-side and
+   FT-side files) into one dataset keyed by CIF. If the same CIF appears in
+   more than one upload (shouldn't normally happen since SME/FT files cover
+   disjoint customer sets), the most recently uploaded file's record wins —
+   simplest predictable rule, and matches "last upload reflects reality". */
+function mergeProductHoldingRows(existingRows, newRows){
+  const byCif = new Map();
+  (existingRows||[]).forEach(r => { if(r.cif) byCif.set(r.cif, r); });
+  (newRows||[]).forEach(r => { if(r.cif) byCif.set(r.cif, r); });
+  return [...byCif.values()];
+}
 function assignFileToSlot(key, file){
-  State.files[key] = file;
+  const slotDef = SLOTS.find(s => s.key === key);
+  const isMultiSlot = !!(slotDef && slotDef.multiple);
   const statusEl = $('slotStatus_'+key);
-  statusEl.textContent = '⏳ Memvalidasi ' + file.name + '...';
   const card = $('slotCard_'+key);
+  if(isMultiSlot){
+    // Accumulate: multiple files can be uploaded into this slot over time,
+    // each one parsed and merged into State.raw[key] rather than replacing
+    // it (see mergeProductHoldingRows). Track every uploaded file's name so
+    // the status line can list them all.
+    State.files[key] = file;
+    State.fileNames[key] = State.fileNames[key] || [];
+    statusEl.textContent = `⏳ Memvalidasi ${file.name}...`;
+    card.classList.remove('filled');
+    parseFileForSlot(key, file).then(rows => {
+      State.raw[key] = mergeProductHoldingRows(State.raw[key], rows);
+      if(!State.fileNames[key].includes(file.name)) State.fileNames[key].push(file.name);
+      statusEl.className = 'slot-status ok';
+      statusEl.textContent = `✓ ${State.fileNames[key].length} file (${State.fileNames[key].join(', ')}), ${State.raw[key].length.toLocaleString('id-ID')} baris tergabung`;
+      card.classList.add('filled');
+      updateProcessButton();
+    }).catch(err => {
+      statusEl.className = 'slot-status err';
+      statusEl.textContent = `✗ Gagal membaca file ${file.name}: ${err.message}`;
+      updateProcessButton();
+    });
+    return;
+  }
+  State.files[key] = file;
+  statusEl.textContent = '⏳ Memvalidasi ' + file.name + '...';
   card.classList.remove('filled');
   parseFileForSlot(key, file).then(rows => {
     State.raw[key] = rows;
@@ -2028,6 +2076,7 @@ function applyGlobalFilter(){
   renderOppGrid();
   renderCharts();
   renderPriorityReviewTable();
+  renderRmPairingTable();
 }
 /* Pre-selects the filter to a specific branch on first load so the dashboard
    opens already scoped to the user's own unit kerja, instead of "Semua".
@@ -2096,7 +2145,7 @@ function renderPinjamanSimpananMerchantStats(custs, ids, combineProspects){
   ];
   const simpananCards = [
     {label:'Total Nasabah Simpanan', value:totalNasabahSimpanan, sub:combineProspects?'termasuk nasabah simpanan tanpa pinjaman':'dari nasabah pinjaman ini saja', cls:'accent'},
-    {label:'Total Simpanan', value:fmtRupiah(totalFunding), sub:'tabungan + giro + deposito', cls:'success'},
+    {label:'Total Simpanan', value:fmtRupiah(totalFunding), sub:'tabungan, giro, deposito', cls:'success'},
     {label:'Tabungan', value:fmtRupiah(agg.tabungan.sum), sub:`${fmtNum(agg.tabungan.count)} rekening, satu nasabah bisa punya lebih dari satu rekening`, cls:''},
     {label:'Giro', value:fmtRupiah(agg.giro.sum), sub:`${fmtNum(agg.giro.count)} rekening`, cls:''},
     {label:'Deposito', value:fmtRupiah(agg.deposito.sum), sub:`${fmtNum(agg.deposito.count)} rekening`, cls:''},
@@ -2179,34 +2228,6 @@ function productPills(c){
   const defs = [['T','Tabungan',c.tabungan.length>0],['G','Giro',c.giro.length>0],['D','Deposito',c.deposito.length>0],['E','EDC',c.edc.length>0],['Q','QRIS',c.qris.length>0]];
   return defs.map(([code,label,on]) => `<span class="badge-pill ${on?'prod-yes':'prod-no'}" title="${label}">${code}</span>`).join(' ');
 }
-/* Renders one small badge per detected opportunity type, each with a tooltip
-   explaining what it means — replaces a bare count so the meaning is self-evident.
-   Wrapped in a fixed 2-column grid so a customer with many opportunities never
-   forces the column (and the whole table) to widen — it just grows downward.
-   Tiered by Kolektibilitas, same logic as the detail card's recommendations:
-   problem loans (Kol 3-5) get a single Recovery badge instead of product
-   pitches; Kol 2 gets a Monitoring badge (no cross-sell — see the Kol === 1
-   gate in buildCustomers/generateDummyCustomers); Kol 1 customers who also
-   land in the Priority 1 visit-matrix quadrant get a Joint OTS badge. The
-   generic risk flags ('kolWatch', 'quality') themselves are never shown
-   here — they're superseded by these more specific badges. */
-function oppPills(c){
-  const kol = c.worstKol;
-  const badges = [];
-  if(kol >= 3){
-    badges.push({tag:'RECOVERY', title:`Kol ${kol} - ${KOL_LABEL[kol]||''}: kolektibilitas bermasalah, fokus penanganan kredit (monitoring/negosiasi/eksekusi), bukan cross-sell.`});
-  } else {
-    if(kol === 2) badges.push({tag:'MONITORING', title:'Kol 2 - Dalam Perhatian Khusus: perlu dipantau komitmen pembayarannya.'});
-    if(kol === 1 && c.priorityQuad === 'needsVisit') badges.push({tag:'JOINT OTS', title:'Lancar namun DPK to Loan rendah (Perlu Kunjungan): peluang kunjungan bersama RM SME & RM FT.'});
-    c.opportunities.filter(k => k !== 'kolWatch' && k !== 'quality').forEach(k => {
-      const def = OPP_DEFS[k];
-      badges.push({tag:def.tag, title:`${def.label}: ${def.sub}`});
-    });
-  }
-  if(!badges.length) return '<span style="color:var(--text-soft)">–</span>';
-  const html = badges.map(b => `<span class="badge-pill opp-badge" title="${escapeHtml(b.title)}">${escapeHtml(b.tag)}</span>`).join('');
-  return `<div class="opp-pill-wrap">${html}</div>`;
-}
 /* Only ever renders a capped page of rows at once, not the entire filtered
    set — for a portfolio with 1,000+ customers, building and inserting one
    giant table's worth of HTML on every filter change is genuinely slow (the
@@ -2216,7 +2237,7 @@ function renderCustTable(){
   const body = $('custBody');
   $('custCounter').textContent = `${State.filteredCust.length} dari ${State.customers.size} nasabah`;
   if(!State.filteredCust.length){
-    body.innerHTML = '<tr><td colspan="9" class="empty">Tidak ada nasabah yang cocok dengan filter.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" class="empty">Tidak ada nasabah yang cocok dengan filter.</td></tr>';
     return;
   }
   const rows = [];
@@ -2232,21 +2253,20 @@ function renderCustTable(){
         <td class="num">${fmtRupiah(c.totalFunding)}</td>
         <td class="num">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</td>
         <td>${productPills(c)}</td>
-        <td>${oppPills(c)}</td>
       </tr>
     `);
     if(isExpanded){
-      rows.push(`<tr class="detail-row" data-detail-for="${escapeHtml(c.cif)}"><td colspan="9">${renderCustomerDetail(c)}</td></tr>`);
+      rows.push(`<tr class="detail-row" data-detail-for="${escapeHtml(c.cif)}"><td colspan="8">${renderCustomerDetail(c)}</td></tr>`);
     }
   });
   body.innerHTML = rows.join('');
 }
 window.toggleCustRow = function(cif){
-  // Accordion behavior: only one Customer 360 detail dropdown open at a
-  // time — opening a new one auto-closes whichever was already open.
-  const wasOpen = State.expandedRows.has(cif);
-  State.expandedRows.clear();
-  if(!wasOpen) State.expandedRows.add(cif);
+  // Multiple Customer 360 detail dropdowns can be expanded at once — an
+  // accordion (auto-closing others) was tried but felt jumpy/jarring on
+  // re-render, so each row toggles independently instead.
+  if(State.expandedRows.has(cif)) State.expandedRows.delete(cif);
+  else State.expandedRows.add(cif);
   renderCustTable();
 };
 /* Jumps to Profil Nasabah from anywhere in the app,
@@ -2263,7 +2283,6 @@ function goToCustomerDetail(cif){
   if(btn) btn.classList.add('active');
   $('panel-customers').classList.add('active');
   $('custSearch').value = cif;
-  State.expandedRows.clear();
   State.expandedRows.add(cif);
   applyCustFilters();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -2354,7 +2373,7 @@ function renderOpportunityRecommendations(c){
     const pct = (c.fundingCoverage||0) * 100;
     const targetFunding = c.totalBakiDebet * threshold;
     const gap = Math.max(0, targetFunding - c.totalFunding);
-    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar + Perlu Kunjungan):</strong> Kolektibilitas lancar, namun DPK to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan), perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
+    notes.push(`<div class="rec-note"><strong>Joint OTS (Lancar, Perlu Kunjungan):</strong> Kolektibilitas lancar, namun DPK to Loan baru ${fmtDec(pct)}% (di bawah ambang batas ${fmtDec(threshold*100,0)}%, lihat tab Prioritas Pengelolaan), perlu top up CASA (Tabungan/Giro/Deposito) minimal ${fmtRupiah(Math.round(gap))} agar rasio funding terhadap OS pinjaman mencapai ambang batas. Lakukan kunjungan bersama RM SME &amp; RM FT untuk mendorong top up ini.</div>`);
   }
   // Product cross-sell opportunities are only pushed for Kol 1 accounts —
   // see the Kol === 1 gate in buildCustomers/generateDummyCustomers — so
@@ -2489,21 +2508,16 @@ function fmtHoldingMetric(label, v){
   return cleanStr(v) || '-';
 }
 function renderProductHoldingSection(cif){
-  // Feature is opt-in: if no Product Holding file has ever been uploaded
-  // (real or demo), don't show the group at all anywhere in the app.
+  // No data, no section — whether the feature is globally inactive (nothing
+  // ever uploaded) or this specific customer simply has no record, render
+  // nothing at all rather than a "belum ada data" placeholder box.
   if(!State.productHolding || State.productHolding.size === 0) return '';
   const rec = State.productHolding.get(cif);
-  if(!rec){
-    return `
-    <div class="rekkoran-box" style="margin-top:12px">
-      <div class="rekkoran-head"><div><strong>Product Holding</strong></div></div>
-      <div class="upload-hint">Belum ada data Product Holding untuk nasabah ini.</div>
-    </div>`;
-  }
+  if(!rec) return '';
   const held = (rec.groups||[]).filter(g => g.flag);
-  // Grid of detail-field cards, same pattern used everywhere else in the
-  // Customer 360 view — reflows naturally with the rest of the page/modal
-  // instead of sitting in its own scrollable table.
+  // Single-column stacked list (not the auto-fit multi-column detail-grid
+  // used elsewhere) so a customer with many products just grows downward
+  // instead of spreading into a confusing 3-across layout.
   const fields = held.map(g => {
     const metricStr = Object.entries(g.metrics||{})
       .map(([label,v]) => `${escapeHtml(label.replace(/_/g,' '))}: ${fmtHoldingMetric(label, v)}`)
@@ -2518,7 +2532,7 @@ function renderProductHoldingSection(cif){
           <div class="upload-hint">Total produk dimiliki: <strong>${fmtNum(rec.totalProduk||held.length)}</strong>${rec.tf ? `, TF: ${fmtRupiah(rec.tf)}` : ''}</div>
         </div>
       </div>
-      <div class="detail-grid" style="margin-top:10px">${fields}</div>
+      <div class="detail-grid detail-grid-single" style="margin-top:10px">${fields}</div>
     </div>
   `;
 }
@@ -2594,7 +2608,7 @@ function renderCustomerDetail(c){
             <div><div class="f-label">Unit Kerja</div><div class="f-value">${escapeHtml(c.uker)}</div></div>
             <div><div class="f-label">Kolektibilitas Terburuk</div><div class="f-value">${c.worstKol} - ${KOL_LABEL[c.worstKol]}</div></div>
             <div><div class="f-label">RM Pengelola Kredit</div><div class="f-value">${escapeHtml(cleanPn(c.loans[0]?.pnPengelola))}</div></div>
-            <div><div class="f-label" title="DPK to Loan: seberapa besar funding (Tabungan + Giro + Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</div></div>
+            <div><div class="f-label" title="DPK to Loan: seberapa besar funding (Tabungan, Giro, Deposito) BRI menutupi Outstanding (baki debet) pinjaman nasabah.">DPK to Loan ℹ️</div><div class="f-value">${c.fundingCoverage!=null ? fmtDec(c.fundingCoverage*100)+'%' : '-'}</div></div>
           </div>
           <div class="product-pills">
             <span class="pill ${c.loans.length?'on':''}">Pinjaman ${c.loans.length}</span>
@@ -2627,10 +2641,18 @@ function renderCustomerDetail(c){
 /* ===================================================================
    RENDER: OPPORTUNITY TAB
    ================================================================= */
+// Quality (Kol 2 monitoring) and Recovery/kolWatch (Kol 3-5) are portfolio
+// quality/risk-monitoring concerns, not growth opportunities — they don't
+// belong on this page. Their OPP_DEFS entries and computeOppCategories
+// lists stay intact (renderOpportunityRecommendations in Customer 360
+// still surfaces Monitoring/Recovery/Joint OTS notes per customer via the
+// dropdown), only the grid card + selectable-category list here excludes
+// them.
+const OPP_GRID_KEYS = Object.keys(OPP_DEFS).filter(k => k !== 'quality' && k !== 'kolWatch');
 function renderOppGrid(){
   computeOppCategories();
   const grid = $('oppGrid');
-  grid.innerHTML = Object.keys(OPP_DEFS).map(k => {
+  grid.innerHTML = OPP_GRID_KEYS.map(k => {
     const def = OPP_DEFS[k];
     const list = State.oppCategories[k];
     const isEmpty = list.length === 0;
@@ -2643,7 +2665,7 @@ function renderOppGrid(){
       </div>
     `;
   }).join('');
-  const firstNonEmpty = Object.keys(OPP_DEFS).find(k => State.oppCategories[k].length > 0);
+  const firstNonEmpty = OPP_GRID_KEYS.find(k => State.oppCategories[k].length > 0);
   if(firstNonEmpty) selectOpp(firstNonEmpty);
   else $('oppDetail').innerHTML = '<div class="opp-detail-empty">Tidak ada peluang bisnis yang terdeteksi dari data saat ini.</div>';
 }
@@ -3000,10 +3022,9 @@ $('btnResetPriorityOverride').addEventListener('click', () => {
    CHARTS
    ================================================================= */
 function renderCharts(){
-  const OVERVIEW_CHART_KEYS = ['kol','produk','topDebet','topFunding','coverageDist'];
+  const OVERVIEW_CHART_KEYS = ['topDebet','coverageDist'];
   OVERVIEW_CHART_KEYS.forEach(k => { if(State.charts[k]){ try{ State.charts[k].destroy(); }catch(e){} delete State.charts[k]; } });
   const custs = getScopedCustomers();
-  const CBLUE = ['#0856c3','#2e78d6','#5a9bdf','#a9e1ee','#d4f0f7'];
   const barValueLabelPlugin = {
     id: 'barValueLabelPlugin',
     afterDatasetsDraw(chart){
@@ -3022,48 +3043,10 @@ function renderCharts(){
       });
     }
   };
-  const kolCount = {1:0,2:0,3:0,4:0,5:0};
-  custs.forEach(c => kolCount[c.worstKol] = (kolCount[c.worstKol]||0)+1);
-  State.charts.kol = new Chart($('chartKol'), {
-    type:'bar',
-    data:{labels:['Kol 1','Kol 2','Kol 3','Kol 4','Kol 5'], datasets:[{data:[1,2,3,4,5].map(k=>kolCount[k]||0), backgroundColor:['#0a9d6e','#d69a12','#e07b1f','#d6592f','#d64545'], borderRadius:6}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, display:false}}},
-    plugins:[barValueLabelPlugin]
-  });
-  const prodCount = {Tabungan:0,Giro:0,Deposito:0,EDC:0,QRIS:0};
-  custs.forEach(c => {
-    if(c.tabungan.length) prodCount.Tabungan++;
-    if(c.giro.length) prodCount.Giro++;
-    if(c.deposito.length) prodCount.Deposito++;
-    if(c.edc.length) prodCount.EDC++;
-    if(c.qris.length) prodCount.QRIS++;
-  });
-  // Fold in funding/merchant-only prospects too — this chart previously only
-  // counted loan-anchored customers, which made "Tabungan" here look far
-  // smaller than the real total shown in the Simpanan table (which already
-  // combines both sources). Deposito stays loan-customer-only: CI324 has no
-  // CIF column, so a genuinely new deposito-only prospect can't be identified.
-  getScopedFundingOnlyProspects().forEach(p => {
-    if(p.tabungan) prodCount.Tabungan++;
-    if(p.giro) prodCount.Giro++;
-    if(p.edc) prodCount.EDC++;
-    if(p.qris) prodCount.QRIS++;
-  });
-  State.charts.produk = new Chart($('chartProduk'), {
-    type:'doughnut',
-    data:{labels:Object.keys(prodCount), datasets:[{data:Object.values(prodCount), backgroundColor:CBLUE, borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:11}}}}}
-  });
   const topDebet = custs.slice().sort((a,b)=>b.totalBakiDebet-a.totalBakiDebet).slice(0,10);
   State.charts.topDebet = new Chart($('chartTopDebet'), {
     type:'bar',
     data:{labels:topDebet.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Baki Debet', data:topDebet.map(c=>c.totalBakiDebet), backgroundColor:'#0856c3', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
-  });
-  const topFunding = custs.slice().sort((a,b)=>b.totalFunding-a.totalFunding).slice(0,10);
-  State.charts.topFunding = new Chart($('chartTopFunding'), {
-    type:'bar',
-    data:{labels:topFunding.map(c=>c.nama.length>22?c.nama.slice(0,20)+'…':c.nama), datasets:[{label:'Total Funding', data:topFunding.map(c=>c.totalFunding), backgroundColor:'#2e78d6', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>'Rp '+c.parsed.x.toLocaleString('id-ID')}}}, scales:{x:{ticks:{callback:v=>'Rp '+(v/1e6).toFixed(0)+'jt'}}}}
   });
   // DPK to Loan bucketed by range, so it's obvious at a glance how many
@@ -3112,6 +3095,36 @@ function renderPriorityReviewTable(){
     </tr>
   `).join('') : '<tr><td colspan="2" class="empty">Tidak ada nasabah pinjaman pada scope filter saat ini.</td></tr>';
 }
+/* RM Pairing ranking table (Ringkasan 2x2 grid, 4th panel) — groups the
+   scoped customer list by RM Pengelola Kredit (RM SME), resolves each one's
+   paired RM FT via findPairedRmFt (data-inferred pairing, falling back to
+   the hardcoded RM_PAIRING SK-document list), and aggregates customer count
+   + total Baki Debet per pair. Sorted descending by total OS so it reads as
+   a ranking, per the user's explicit request. */
+function renderRmPairingTable(){
+  const custs = getScopedCustomers();
+  const pairs = new Map(); // rmSme -> {rmFt, count, os}
+  custs.forEach(c => {
+    const rmSme = c.rmPengelola;
+    if(!rmSme || rmSme === '-') return;
+    if(!pairs.has(rmSme)) pairs.set(rmSme, {rmFt: findPairedRmFt(rmSme) || '-', count: 0, os: 0});
+    const entry = pairs.get(rmSme);
+    entry.count++;
+    entry.os += c.totalBakiDebet || 0;
+  });
+  const rows = [...pairs.entries()]
+    .map(([rmSme, v]) => ({rmSme, ...v}))
+    .sort((a,b) => b.os - a.os);
+  $('rmPairingBody').innerHTML = rows.length ? rows.map((r,i) => `
+    <tr>
+      <td class="num">${i+1}</td>
+      <td>${escapeHtml(r.rmSme)}</td>
+      <td>${escapeHtml(r.rmFt)}</td>
+      <td class="num">${fmtNum(r.count)}</td>
+      <td class="num">${fmtRupiah(r.os)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="empty">Tidak ada data RM pairing pada scope filter saat ini.</td></tr>';
+}
 /* ===================================================================
    EXPORT TO EXCEL
    ================================================================= */
@@ -3144,10 +3157,15 @@ function exportToExcel(){
       // produk[]/saldo/openDt/ukerCode/everHadLoan) than every other category
       // (full Customer objects) — special-cased so it doesn't try to read
       // .totalBakiDebet/.loans etc. that don't exist on it.
-      const rows = k === 'pinjaman'
+      // cashCollateral (buildCashCollateralOppList) shares the exact same
+      // merged prospect+customer shape as pinjaman (buildPinjamanOppList) —
+      // no .loans/.totalBakiDebet in the Customer-object sense — so it must
+      // take the SAME branch here, not the generic Customer-object branch.
+      const isPinjamanShape = k === 'pinjaman' || k === 'cashCollateral';
+      const rows = isPinjamanShape
         ? list.map(p => [p.nama, p.cif, p.produk.join(', '), p.saldo, p.openDt, p.ukerCode, p.everHadLoan ? 'Kredit lunas/tidak aktif' : 'Belum pernah kredit'])
         : list.map(c => [c.nama, c.cif, c.uker, c.worstKol, c.totalBakiDebet, c.totalFunding, cleanPn(c.loans[0]?.pnPengelola)]);
-      const header = k === 'pinjaman'
+      const header = isPinjamanShape
         ? ['Nama','CIF','Produk Dimiliki','Saldo/Funding','Tanggal Buka','Kode Unit Kerja','Status Kredit']
         : ['Nama','CIF','Unit Kerja','Kol','Baki Debet','Total Funding','RM Pengelola Kredit'];
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
