@@ -1360,17 +1360,16 @@ function rekKoranMonthLabel(y, m){
    sample case" flag), tolerant of a badan-usaha prefix/suffix (PT/CV/UD/etc.)
    since the real LW321 record may list it as "BUANA PAKSA", "CV BUANA
    PAKSA", or "BUANA PAKSA CV".
-   - BUANA PAKSA: 14 bulan, Mei 2025–Jun 2026 (Mei dan Jun 2026 ditambahkan
-     dari file BRISIM terbaru; evaluateRekeningKoranPipelines otomatis
-     menggeser jendela 12/6 bulannya ke bulan-bulan terbaru via
-     entries.slice(-12)/slice(-6), jadi tidak perlu perubahan kode lain).
+   - BUANA PAKSA: 12 bulan penuh, Jul 2025–Jun 2026 (Mei dan Jun 2025 yang
+     tadinya ada di awal array sudah dihapus supaya tetap 12 bulan berjalan
+     begitu Mei/Jun 2026 ditambahkan; evaluateRekeningKoranPipelines tetap
+     pakai entries.slice(-12)/slice(-6) untuk jendela 12/6 bulannya, sekarang
+     window 12-bulannya otomatis sama dengan seluruh array).
    - KARYA SATRIA: 10 dari 12 bulan yang dijanjikan (Jul–Okt 2025, Des
      2025–Apr 2026, Jun 2026) — Nov 2025 dan Mei 2026 belum ke-upload,
      menunggu 2 file itu untuk melengkapi jadi 12 bulan penuh. */
 const REAL_REKENING_KORAN = {
   'BUANA PAKSA': [
-    {year:2025, month:5,  freq:10, totalCredit:3046176240,  totalDebit:1358505074,avgDailyBalance:349283184},
-    {year:2025, month:6,  freq:24, totalCredit:62513794,    totalDebit:1571825588,avgDailyBalance:566950620},
     {year:2025, month:7,  freq:17, totalCredit:38161871,    totalDebit:150024874, avgDailyBalance:99538657},
     {year:2025, month:8,  freq:24, totalCredit:134471305,   totalDebit:22030101,  avgDailyBalance:133967235},
     {year:2025, month:9,  freq:21, totalCredit:51502080,    totalDebit:115803716, avgDailyBalance:124337332},
