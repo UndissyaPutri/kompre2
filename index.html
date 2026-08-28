@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Relationship Dashboard</title>
+<title>Dashboard Keterkaitan Pinjaman - Simpanan</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -465,8 +465,7 @@ table.data-table td.empty{text-align:center}
   <div class="header-inner">
     <div class="brand">
       <div class="brand-text">
-        <h1>Customer Relationship Dashboard</h1>
-        <p>Model Pengelolaan Nasabah Berbasis Data</p>
+        <h1>Dashboard Keterkaitan Pinjaman - Simpanan</h1>
       </div>
     </div>
     <div class="header-actions" id="headerActions" style="display:none">
@@ -1367,7 +1366,26 @@ function rekKoranMonthLabel(y, m){
      window 12-bulannya otomatis sama dengan seluruh array).
    - KARYA SATRIA: 10 dari 12 bulan yang dijanjikan (Jul–Okt 2025, Des
      2025–Apr 2026, Jun 2026) — Nov 2025 dan Mei 2026 belum ke-upload,
-     menunggu 2 file itu untuk melengkapi jadi 12 bulan penuh. */
+     menunggu 2 file itu untuk melengkapi jadi 12 bulan penuh.
+   - VITA VERDIANA SARI: 12 bulan penuh, Jul 2025–Jun 2026 (rekening
+     43501002067568, dipakai untuk user journey RM Alhaba — Prioritas Perlu
+     Kunjungan).
+   - MEKA ADIPRATAMA: hanya 3 dari 12 bulan yang di-upload (Apr–Jun 2026,
+     rekening 43501889889563) — 9 bulan lainnya (Jul 2025–Mar 2026) memang
+     "Transaksi tidak ditemukan" di source BRISIM-nya karena rekening ini
+     baru dibuka 28/04/2026 dengan setoran awal Rp1.010.000.000 dan sejak
+     itu dana besar tsb hanya diam/parkir (nyaris tidak ada mutasi lain
+     selain bunga & pajak) — bulan kosong sebelum rekening dibuka sengaja
+     tidak dimasukkan sbg entry (pola sama seperti KARYA SATRIA yang skip
+     bulan tanpa data), dan justru jadi narasi kuat untuk Peluang Pinjaman
+     di user journey RM Alhaba.
+   - MUHAMAD KASTONI: 12 bulan penuh, Jul 2025–Jun 2026 (rekening
+     43501040613501, dipakai untuk user journey RM Alhaba — Prioritas
+     Sehat/CASA/TRX). Ada momen 31/05/2026 "PINJ KE SIMP AN" kredit
+     Rp1.300.000.000 (pencairan pinjaman ke simpanan) langsung diikuti
+     01/06/2026 "SET PINJ AN" debit Rp1.300.000.000 (setoran pinjaman) —
+     transaksi asli, bukan artefak parsing, jadi mutasi Mei/Jun memang
+     besar. */
 const REAL_REKENING_KORAN = {
   'BUANA PAKSA': [
     {year:2025, month:7,  freq:17, totalCredit:38161871,    totalDebit:150024874, avgDailyBalance:99538657},
@@ -1394,6 +1412,39 @@ const REAL_REKENING_KORAN = {
     {year:2026, month:3,  freq:12, totalCredit:100025036,   totalDebit:88376185,  avgDailyBalance:93328189},
     {year:2026, month:4,  freq:16, totalCredit:500892260,   totalDebit:530109117, avgDailyBalance:125967265},
     {year:2026, month:6,  freq:19, totalCredit:173137691,   totalDebit:176481235, avgDailyBalance:78872362},
+  ].map(e => ({...e, simulated:false})),
+  'VITA VERDIANA SARI': [
+    {year:2025, month:7,  freq:125, totalCredit:1676026110, totalDebit:1707551330,avgDailyBalance:15238218},
+    {year:2025, month:8,  freq:119, totalCredit:1756294761, totalDebit:1752655920,avgDailyBalance:11842770},
+    {year:2025, month:9,  freq:116, totalCredit:2025386105, totalDebit:2031458985,avgDailyBalance:12876412},
+    {year:2025, month:10, freq:107, totalCredit:2078152384, totalDebit:2078393639,avgDailyBalance:28351309},
+    {year:2025, month:11, freq:88,  totalCredit:1917005447, totalDebit:1913036353,avgDailyBalance:7406689},
+    {year:2025, month:12, freq:92,  totalCredit:2043767115, totalDebit:2047318749,avgDailyBalance:16265077},
+    {year:2026, month:1,  freq:102, totalCredit:1950578353, totalDebit:1945053685,avgDailyBalance:17707961},
+    {year:2026, month:2,  freq:99,  totalCredit:2282025985, totalDebit:2292688315,avgDailyBalance:15679269},
+    {year:2026, month:3,  freq:87,  totalCredit:1836699671, totalDebit:1812517966,avgDailyBalance:7402882},
+    {year:2026, month:4,  freq:86,  totalCredit:1807007055, totalDebit:1815656299,avgDailyBalance:30289912},
+    {year:2026, month:5,  freq:92,  totalCredit:2207978893, totalDebit:2186073341,avgDailyBalance:27507480},
+    {year:2026, month:6,  freq:53,  totalCredit:784383816,  totalDebit:765010407, avgDailyBalance:51476218},
+  ].map(e => ({...e, simulated:false})),
+  'MEKA ADIPRATAMA': [
+    {year:2026, month:4,  freq:5, totalCredit:1010000000, totalDebit:0,      avgDailyBalance:1010000000},
+    {year:2026, month:5,  freq:4, totalCredit:2369588,    totalDebit:382613, avgDailyBalance:1010865636},
+    {year:2026, month:6,  freq:3, totalCredit:3245483,    totalDebit:515763, avgDailyBalance:1014071991},
+  ].map(e => ({...e, simulated:false})),
+  'MUHAMAD KASTONI': [
+    {year:2025, month:7,  freq:143, totalCredit:928032959,  totalDebit:987241215,  avgDailyBalance:243791280},
+    {year:2025, month:8,  freq:152, totalCredit:474923295,  totalDebit:521741382,  avgDailyBalance:66063534},
+    {year:2025, month:9,  freq:89,  totalCredit:483645951,  totalDebit:504926970,  avgDailyBalance:34538331},
+    {year:2025, month:10, freq:119, totalCredit:374611003,  totalDebit:374537099,  avgDailyBalance:27758905},
+    {year:2025, month:11, freq:98,  totalCredit:372110888,  totalDebit:370387457,  avgDailyBalance:26787198},
+    {year:2025, month:12, freq:97,  totalCredit:440840510,  totalDebit:441143435,  avgDailyBalance:25200341},
+    {year:2026, month:1,  freq:111, totalCredit:802094163,  totalDebit:820411475,  avgDailyBalance:88070466},
+    {year:2026, month:2,  freq:76,  totalCredit:237307493,  totalDebit:220151344,  avgDailyBalance:16082643},
+    {year:2026, month:3,  freq:53,  totalCredit:108143019,  totalDebit:106976300,  avgDailyBalance:6153932},
+    {year:2026, month:4,  freq:86,  totalCredit:280904013,  totalDebit:278875750,  avgDailyBalance:13510126},
+    {year:2026, month:5,  freq:76,  totalCredit:2881227327, totalDebit:1596980763, avgDailyBalance:151173824},
+    {year:2026, month:6,  freq:96,  totalCredit:1591405041, totalDebit:1572188756, avgDailyBalance:56679116},
   ].map(e => ({...e, simulated:false})),
 };
 function lookupRealRekeningKoran(nama){
