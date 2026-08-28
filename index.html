@@ -564,7 +564,7 @@ table.data-table td.empty{text-align:center}
           <div class="chart-canvas-wrap"><canvas id="chartCoverageDist"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Tabel RM Pairing (RM SME x RM FT), Top 10</h3>
+          <h3>Top 10 RM Pairing (RM SME x RM FT)</h3>
           <div class="table-wrap" style="height:280px;overflow-y:auto">
             <table class="data-table" id="rmPairingTable">
               <thead><tr>
@@ -3229,7 +3229,7 @@ function exportToExcel(){
     });
     const now = new Date();
     const pad2 = n => String(n).padStart(2,'0');
-    const stamp = `${pad2(now.getDate())}-${pad2(now.getMonth()+1)}-${now.getFullYear()} ${pad2(now.getHours())}-${pad2(now.getMinutes())}`;
+    const stamp = `${pad2(now.getDate())}-${pad2(now.getMonth()+1)}-${now.getFullYear()} ${pad2(now.getHours())}.${pad2(now.getMinutes())}`;
     const filename = `CustomerRelationshipDashboard_${stamp}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('File Excel berhasil diunduh!', 'success');
