@@ -1360,7 +1360,10 @@ function rekKoranMonthLabel(y, m){
    sample case" flag), tolerant of a badan-usaha prefix/suffix (PT/CV/UD/etc.)
    since the real LW321 record may list it as "BUANA PAKSA", "CV BUANA
    PAKSA", or "BUANA PAKSA CV".
-   - BUANA PAKSA: full 12 bulan, Mei 2025–Apr 2026.
+   - BUANA PAKSA: 14 bulan, Mei 2025–Jun 2026 (Mei dan Jun 2026 ditambahkan
+     dari file BRISIM terbaru; evaluateRekeningKoranPipelines otomatis
+     menggeser jendela 12/6 bulannya ke bulan-bulan terbaru via
+     entries.slice(-12)/slice(-6), jadi tidak perlu perubahan kode lain).
    - KARYA SATRIA: 10 dari 12 bulan yang dijanjikan (Jul–Okt 2025, Des
      2025–Apr 2026, Jun 2026) — Nov 2025 dan Mei 2026 belum ke-upload,
      menunggu 2 file itu untuk melengkapi jadi 12 bulan penuh. */
@@ -1378,6 +1381,8 @@ const REAL_REKENING_KORAN = {
     {year:2026, month:2,  freq:29, totalCredit:222400467,   totalDebit:653005041, avgDailyBalance:595908063},
     {year:2026, month:3,  freq:24, totalCredit:142380945,   totalDebit:3519089,   avgDailyBalance:374753080},
     {year:2026, month:4,  freq:35, totalCredit:82583382,    totalDebit:379640318, avgDailyBalance:193707743},
+    {year:2026, month:5,  freq:30, totalCredit:182585274,   totalDebit:122322383, avgDailyBalance:184747452},
+    {year:2026, month:6,  freq:21, totalCredit:80796500,    totalDebit:133318621, avgDailyBalance:196810369},
   ].map(e => ({...e, simulated:false})),
   'KARYA SATRIA': [
     {year:2025, month:7,  freq:9,  totalCredit:151248275,   totalDebit:34965843,  avgDailyBalance:133086009},
@@ -1647,7 +1652,12 @@ function buildCustomers(){
   });
   const prospectMap = new Map();
   function getProspect(cif, nama, ukerCode){
-    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', kanwil:'', kanca:'', uker:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''});
+    if(!prospectMap.has(cif)) prospectMap.set(cif, {cif, nama:'', ukerCode:'', kanwil:'', kanca:'', uker:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'',
+      // Account-level detail (numbers/MIDs), separate from the counts/sums
+      // above — used only for display (Rekening Koran popup on an opp-entry
+      // card: nomor rekening / cash collateral / EDC detail), never for
+      // opportunity-detection logic, which stays on the counts/sums.
+      tabunganAccts:[], giroAccts:[], depositoAccts:[], edcList:[], qrisList:[]});
     const p = prospectMap.get(cif);
     if(!p.nama && nama) p.nama = nama;
     if(!p.ukerCode && ukerCode){
@@ -1675,6 +1685,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.ukerCode));
       p.tabungan++; p.tabunganSum += parseNum(row.balance);
+      if(row.accountNumber) p.tabunganAccts.push(cleanStr(row.accountNumber));
       bumpOpenDt(p, row.openDt);
       addProspectRmFt(p, row.pnPengelola);
     }
@@ -1690,6 +1701,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.shortName), cleanStr(row.kodeUker));
       p.giro++; p.giroSum += parseNum(row.balance);
+      if(row.accountNumber) p.giroAccts.push(cleanStr(row.accountNumber));
       bumpOpenDt(p, row.openDate);
       addProspectRmFt(p, row.pnPengelola);
     }
@@ -1706,6 +1718,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.namaMerchant), '');
       p.edc++; p.edcSum += parseNum(row.akumulasiSalesVolume || row.salesVolume);
+      p.edcList.push({mid:cleanStr(row.mid), namaMerchant:cleanStr(row.namaMerchant)});
       addProspectRmFt(p, combinePn(row.pnUser, row.namaUser));
     }
   });
@@ -1721,6 +1734,7 @@ function buildCustomers(){
     } else if(cif){
       const p = getProspect(cif, cleanStr(row.namaMerchant), '');
       p.qris++; p.qrisSum += parseNum(row.akumulasiSvTotal);
+      p.qrisList.push({namaMerchant:cleanStr(row.namaMerchant)});
       addProspectRmFt(p, combinePn(row.pn, row.pnNama));
     }
   });
@@ -1790,6 +1804,7 @@ function buildCustomers(){
     if(pKey){
       const p = prospectMap.get(pKey);
       p.deposito++; p.depositoSum += principal;
+      if(row.acctno) p.depositoAccts.push(cleanStr(row.acctno));
       diagCounts.CI324.matched++;
       if(prospectFuzzy) diagCounts.CI324.fuzzy++;
     } else {
@@ -1798,6 +1813,7 @@ function buildCustomers(){
       const depKey = 'DEP:'+rn;
       const p = getProspect(depKey, cleanStr(row.shortName), '');
       p.deposito++; p.depositoSum += principal;
+      if(row.acctno) p.depositoAccts.push(cleanStr(row.acctno));
       prospectNameIndex.set(rn, depKey);
       prospectNameList.push([rn, depKey]);
       diagCounts.CI324.matched++;
@@ -2535,6 +2551,39 @@ function renderProductHoldingSection(cif){
     </div>
   `;
 }
+/* Account-number detail for the Rekening Koran popup (opp-entry cards) —
+   nomor rekening, cash collateral (deposito), and Merchant EDC/QRIS, so an
+   RM doesn't have to jump elsewhere to find them once CIF and Product
+   Holding are already showing there. Works for both a real Customer 360
+   record (c.tabungan/c.giro/c.deposito/c.edc/c.qris, full account objects)
+   and a funding-only prospect (p.tabunganAccts/giroAccts/depositoAccts/
+   edcList/qrisList, lighter account-number-only arrays collected in
+   buildCustomers — see getProspect). Purely informational, same as Product
+   Holding: never feeds opportunity-detection logic, and quietly renders
+   nothing if the entity has no account-level detail available (e.g. the
+   demo/simulated prospects, which don't carry real account numbers). */
+function renderAccountDetailSection(entity){
+  if(!entity) return '';
+  const isCustomer = Array.isArray(entity.loans);
+  const tabunganAccts = isCustomer ? entity.tabungan.map(t=>cleanStr(t.accountNumber)).filter(Boolean) : (entity.tabunganAccts||[]);
+  const giroAccts = isCustomer ? entity.giro.map(t=>cleanStr(t.accountNumber)).filter(Boolean) : (entity.giroAccts||[]);
+  const depositoAccts = isCustomer ? entity.deposito.map(t=>cleanStr(t.acctno)).filter(Boolean) : (entity.depositoAccts||[]);
+  const edcList = isCustomer ? entity.edc.map(m=>({mid:cleanStr(m.mid), namaMerchant:cleanStr(m.namaMerchant)})) : (entity.edcList||[]);
+  const qrisList = isCustomer ? entity.qris.map(m=>({namaMerchant:cleanStr(m.namaMerchant)})) : (entity.qrisList||[]);
+  if(!tabunganAccts.length && !giroAccts.length && !depositoAccts.length && !edcList.length && !qrisList.length) return '';
+  const fields = [];
+  if(tabunganAccts.length) fields.push(`<div class="detail-field"><span class="lbl">No. Rekening Tabungan</span><span class="val">${escapeHtml(tabunganAccts.join(', '))}</span></div>`);
+  if(giroAccts.length) fields.push(`<div class="detail-field"><span class="lbl">No. Rekening Giro</span><span class="val">${escapeHtml(giroAccts.join(', '))}</span></div>`);
+  if(depositoAccts.length) fields.push(`<div class="detail-field"><span class="lbl">Cash Collateral, No. Rekening Deposito</span><span class="val">${escapeHtml(depositoAccts.join(', '))}</span></div>`);
+  if(edcList.length) fields.push(`<div class="detail-field"><span class="lbl">Merchant EDC</span><span class="val">${escapeHtml(edcList.map(m=>`${m.mid||'-'}${m.namaMerchant?' ('+m.namaMerchant+')':''}`).join(', '))}</span></div>`);
+  if(qrisList.length) fields.push(`<div class="detail-field"><span class="lbl">Merchant QRIS</span><span class="val">${escapeHtml(qrisList.map(m=>m.namaMerchant||'-').join(', '))}</span></div>`);
+  return `
+    <div class="rekkoran-box" style="margin-top:12px">
+      <div class="rekkoran-head"><div><strong>Detail Rekening</strong></div></div>
+      <div class="detail-grid detail-grid-single" style="margin-top:10px">${fields.join('')}</div>
+    </div>
+  `;
+}
 /* Rekening Koran pop-up — lets an opp-entry card (Peluang Pengembangan:
    Pinjaman, Cash Collateral, Merchant, etc.) show the same Rekening Koran
    table + Pipeline SME badges as the Profil Nasabah / Customer 360 view,
@@ -2560,7 +2609,7 @@ function showRekeningKoranModal(cif){
   }
   $('rkModalTitle').textContent = nama || '(tanpa nama)';
   $('rkModalSub').textContent = subLabel;
-  $('rkModalBody').innerHTML = renderRekeningKoranSection(entity) + renderProductHoldingSection(entity.cif);
+  $('rkModalBody').innerHTML = renderRekeningKoranSection(entity) + renderAccountDetailSection(entity) + renderProductHoldingSection(entity.cif);
   $('rkModalOverlay').classList.add('show');
 }
 window.showRekeningKoranModal = showRekeningKoranModal;
@@ -3384,10 +3433,13 @@ function generateDummyFundingOnlyProspects(){
     // partners respectively, so filtering Peluang Pengembangan by either RM
     // SME picks these up via the RM SME ↔ RM FT widening (getScopedFundingOnlyProspects).
     {cif:'P900001', nama:'PT SEJAHTERA NIAGA MAKMUR', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00701122 - EKA WULANDARI'], tabungan:1, tabunganSum:180000000, giro:0, giroSum:0, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20240115',
+      tabunganAccts:['0439012345678'], giroAccts:[], depositoAccts:[], edcList:[], qrisList:[],
       rekeningKoran: series(35, 60000000, 55000000, 120000000)}, // clears CASA Optimal (12bln): CASA ≥100jt, freq ≥30x
     {cif:'P900002', nama:'HENDRA WIJAYA KUSUMA', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00788234 - FAJAR NUGROHO'], tabungan:1, tabunganSum:95000000, giro:1, giroSum:40000000, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20230608',
+      tabunganAccts:['0439087654321'], giroAccts:['0421056789012'], depositoAccts:[], edcList:[], qrisList:[],
       rekeningKoran: series(12, 850000000, 700000000, 55000000)}, // clears Transaksi Optimal (6bln): kredit ≥800jt/bln, CASA ≥50jt
     {cif:'P900004', nama:'CV BERKAT SEJAHTERA ABADI', kanwil:region.kanwil, kanca:region.kanca, uker:region.ukers[0], ukerCode:'', rmFundingList:['00701122 - EKA WULANDARI'], tabungan:0, tabunganSum:0, giro:1, giroSum:150000000, deposito:0, depositoSum:0, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'20240702',
+      tabunganAccts:[], giroAccts:['0421099887766'], depositoAccts:[], edcList:[], qrisList:[],
       rekeningKoran: series(40, 65000000, 60000000, 130000000)}, // clears CASA Optimal (12bln): CASA ≥100jt, freq ≥30x — 3rd Peluang Pinjaman showcase
     // A third showcase for the fixed Deposito logic (see prospectMap/CI324
     // handling in buildCustomers): a customer who ONLY ever shows up in the
@@ -3395,7 +3447,8 @@ function generateDummyFundingOnlyProspects(){
     // case that was previously invisible everywhere. No CIF/branch info on
     // file for this one (CI324 genuinely carries neither), same constraint
     // real uploads have — hence the synthetic "DEP:" cif and blank branch.
-    {cif:'DEP:CANTIKA DEWI LESTARI', nama:'CANTIKA DEWI LESTARI', kanwil:'', kanca:'', uker:'', ukerCode:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:1, depositoSum:85000000, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:''},
+    {cif:'DEP:CANTIKA DEWI LESTARI', nama:'CANTIKA DEWI LESTARI', kanwil:'', kanca:'', uker:'', ukerCode:'', rmFundingList:[], tabungan:0, tabunganSum:0, giro:0, giroSum:0, deposito:1, depositoSum:85000000, edc:0, edcSum:0, qris:0, qrisSum:0, latestOpenDt:'',
+      tabunganAccts:[], giroAccts:[], depositoAccts:['0435500123456'], edcList:[], qrisList:[]},
   ];
   prospects.forEach(p => { p.pipelineEval = evaluateRekeningKoranPipelines({rekeningKoran:p.rekeningKoran||[]}); });
   return prospects;
